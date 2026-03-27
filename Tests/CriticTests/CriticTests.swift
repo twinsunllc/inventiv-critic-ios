@@ -232,6 +232,59 @@ import Foundation
     #expect(response.items.isEmpty)
 }
 
+@Test func paginatedResponseBugReportsRoundTrip() throws {
+    let original = PaginatedResponse<BugReport>(
+        count: 1,
+        currentPage: 1,
+        totalPages: 1,
+        items: [BugReport(id: "br-1", description: "Test")]
+    )
+    let data = try JSONEncoder().encode(original)
+    let decoded = try JSONDecoder().decode(PaginatedResponse<BugReport>.self, from: data)
+    #expect(decoded.count == original.count)
+    #expect(decoded.currentPage == original.currentPage)
+    #expect(decoded.totalPages == original.totalPages)
+    #expect(decoded.items.count == 1)
+    #expect(decoded.items[0].id == "br-1")
+}
+
+@Test func paginatedResponseDevicesRoundTrip() throws {
+    let original = PaginatedResponse<Device>(
+        count: 2,
+        currentPage: 1,
+        totalPages: 1,
+        items: [
+            Device(id: "dev-1", model: "iPhone15,2"),
+            Device(id: "dev-2", model: "iPad14,1")
+        ]
+    )
+    let data = try JSONEncoder().encode(original)
+    let decoded = try JSONDecoder().decode(PaginatedResponse<Device>.self, from: data)
+    #expect(decoded.count == 2)
+    #expect(decoded.items.count == 2)
+    #expect(decoded.items[0].id == "dev-1")
+    #expect(decoded.items[1].model == "iPad14,1")
+}
+
+@Test func paginatedResponseUnknownTypeDecodesViaFallback() throws {
+    // AppVersion doesn't conform to PaginatedItemKey, so the decoder
+    // should fall back to trying all non-metadata keys.
+    let json = """
+    {
+        "count": 1,
+        "current_page": 1,
+        "total_pages": 1,
+        "app_versions": [
+            {"id": "ver-1", "code": "10", "name": "1.0.0"}
+        ]
+    }
+    """
+    let response = try JSONDecoder().decode(PaginatedResponse<AppVersion>.self, from: Data(json.utf8))
+    #expect(response.count == 1)
+    #expect(response.items.count == 1)
+    #expect(response.items[0].id == "ver-1")
+}
+
 // MARK: - PingRequest Tests
 
 @Test func pingRequestEncoding() throws {
@@ -362,6 +415,23 @@ import Foundation
     let formData = MultipartFormData(boundary: "EMPTY")
     let body = String(data: formData.build(), encoding: .utf8)!
     #expect(body == "--EMPTY--\r\n")
+}
+
+@Test func multipartFormDataFilenameSanitizesQuotes() {
+    var formData = MultipartFormData(boundary: "B")
+    let fileData = Data("data".utf8)
+    formData.addFile(name: "file", filename: "file\"name.txt", mimeType: "text/plain", data: fileData)
+    let body = String(data: formData.build(), encoding: .utf8)!
+    #expect(body.contains("filename=\"file\\\"name.txt\""))
+    #expect(!body.contains("filename=\"file\"name.txt\""))
+}
+
+@Test func multipartFormDataFilenameSanitizesNewlines() {
+    var formData = MultipartFormData(boundary: "B")
+    let fileData = Data("data".utf8)
+    formData.addFile(name: "file", filename: "file\r\nname.txt", mimeType: "text/plain", data: fileData)
+    let body = String(data: formData.build(), encoding: .utf8)!
+    #expect(body.contains("filename=\"filename.txt\""))
 }
 
 // MARK: - Endpoints Tests

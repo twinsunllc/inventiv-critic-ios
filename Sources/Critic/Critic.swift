@@ -24,6 +24,11 @@ public final class Critic: @unchecked Sendable {
         self.baseURL = URL(string: "https://critic.inventiv.io")!
     }
 
+    /// Thread-safe read of mutable properties used by public methods.
+    private func lockedState() -> (api: CriticAPI?, appInstallId: String?) {
+        lock.withLock { (self.api, self.appInstallId) }
+    }
+
     /// Initialize the SDK with an organization API token.
     /// Performs a ping to register the device and app install.
     #if canImport(UIKit)
@@ -34,11 +39,11 @@ public final class Critic: @unchecked Sendable {
     ) async throws {
         let resolvedBaseURL = baseURL ?? self.baseURL
 
-        lock.lock()
-        self.apiToken = apiToken
-        self.baseURL = resolvedBaseURL
-        self.api = CriticAPI(baseURL: resolvedBaseURL, apiToken: apiToken)
-        lock.unlock()
+        lock.withLock {
+            self.apiToken = apiToken
+            self.baseURL = resolvedBaseURL
+            self.api = CriticAPI(baseURL: resolvedBaseURL, apiToken: apiToken)
+        }
 
         let deviceInfo = DeviceInfo()
         let deviceInfoData = deviceInfo.collectDeviceInfoData()
@@ -66,12 +71,12 @@ public final class Critic: @unchecked Sendable {
             deviceStatus: deviceStatus
         )
 
-        guard let api else { throw CriticError.notInitialized }
+        guard let api = lock.withLock({ self.api }) else { throw CriticError.notInitialized }
         let appInstall = try await api.ping(pingRequest)
 
-        lock.lock()
-        self.appInstallId = appInstall.id
-        lock.unlock()
+        lock.withLock {
+            self.appInstallId = appInstall.id
+        }
     }
     #endif
 
@@ -80,6 +85,8 @@ public final class Critic: @unchecked Sendable {
         _ report: BugReportInput,
         attachments: [(filename: String, mimeType: String, data: Data)]? = nil
     ) async throws -> BugReport {
+        let (api, appInstallId) = lockedState()
+
         guard let api else { throw CriticError.notInitialized }
         guard let appInstallId else { throw CriticError.notInitialized }
 

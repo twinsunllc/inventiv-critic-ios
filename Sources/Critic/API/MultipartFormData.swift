@@ -27,11 +27,21 @@ public struct MultipartFormData: Sendable {
         parts.append(part)
     }
 
+    /// Sanitizes a filename for safe use in a Content-Disposition header.
+    private static func sanitizeFilename(_ filename: String) -> String {
+        var sanitized = filename
+        sanitized = sanitized.replacingOccurrences(of: "\"", with: "\\\"")
+        sanitized = sanitized.replacingOccurrences(of: "\r", with: "")
+        sanitized = sanitized.replacingOccurrences(of: "\n", with: "")
+        return sanitized
+    }
+
     /// Adds a file to the form data.
     public mutating func addFile(name: String, filename: String, mimeType: String, data: Data) {
+        let safeFilename = Self.sanitizeFilename(filename)
         var part = Data()
         part.append("--\(boundary)\r\n")
-        part.append("Content-Disposition: form-data; name=\"\(name)\"; filename=\"\(filename)\"\r\n")
+        part.append("Content-Disposition: form-data; name=\"\(name)\"; filename=\"\(safeFilename)\"\r\n")
         part.append("Content-Type: \(mimeType)\r\n")
         part.append("\r\n")
         part.append(data)

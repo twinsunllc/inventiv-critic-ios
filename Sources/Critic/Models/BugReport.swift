@@ -1,7 +1,9 @@
 import Foundation
 
 /// Represents a bug report submitted through Critic.
-public struct BugReport: Codable, Sendable, Equatable {
+public struct BugReport: Codable, Sendable, Equatable, PaginatedItemKey {
+
+    public static let paginatedKey = "bug_reports"
 
     /// The unique identifier (UUID) for this report.
     public let id: String
