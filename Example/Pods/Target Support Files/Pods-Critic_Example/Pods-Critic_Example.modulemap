@@ -1,6 +1,0 @@
-framework module Pods_Critic_Example {
-  umbrella header "Pods-Critic_Example-umbrella.h"
-
-  export *
-  module * { export * }
-}
