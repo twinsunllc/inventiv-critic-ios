@@ -25,31 +25,29 @@ jobs:
   # --- Nightly security jobs ---
 
   package-age-check:
-    name: Dependency Age Check (Git Tag Dates)
+    name: CocoaPods Dependency Age Check
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
-      - name: Check dependency tag dates via GitHub API
+      - name: Check dependency publication dates for resolved versions
         shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           QUARANTINE_DAYS=7
           NOW=$(date +%s)
           FAILED=0
 
-          # Extract CocoaPods dependencies and versions from the podspec
-          DEPS=$(grep "s.dependency" Critic.podspec \
-            | sed "s/.*s.dependency[[:space:]]*'\([^']*\)'.*/\1/" \
-            | tr -d "'")
+          # Extract CocoaPods dependencies with version constraints from the podspec
+          # Format: s.dependency 'PodName', '~> 1.2.3'
+          while IFS= read -r line; do
+            POD_NAME=$(echo "$line" | sed "s/.*s\.dependency[[:space:]]*'\\([^']*\\)'.*/\\1/")
+            # Extract version constraint (e.g., ~> 2.0.1)
+            VERSION_CONSTRAINT=$(echo "$line" | grep -oP "'~>[^']*'" | tr -d "'" | xargs || true)
 
-          for DEP_LINE in $DEPS; do
-            POD_NAME=$(echo "$DEP_LINE" | cut -d',' -f1 | xargs)
-            echo "Checking $POD_NAME..."
+            echo "Checking $POD_NAME (constraint: ${VERSION_CONSTRAINT:-none})..."
 
-            # Query CocoaPods trunk API for the pod spec
+            # Query CocoaPods trunk API
             SPEC_URL="https://trunk.cocoapods.org/api/v1/pods/${POD_NAME}"
             RESPONSE=$(curl -sf "$SPEC_URL" 2>/dev/null || true)
 
@@ -58,32 +56,56 @@ jobs:
               continue
             fi
 
-            # Get the latest version's created_at timestamp
-            CREATED_AT=$(echo "$RESPONSE" | jq -r '
-              .versions
-              | sort_by(.created_at)
-              | last
-              | .created_at // empty')
+            # Resolve the version constraint against available versions.
+            # ~> X.Y.Z means >= X.Y.Z and < X.(Y+1).0
+            # ~> X.Y means >= X.Y.0 and < (X+1).0.0
+            # Find the highest matching version's created_at.
+            RESOLVED=$(echo "$RESPONSE" | jq -r --arg constraint "$VERSION_CONSTRAINT" '
+              def parse_ver: split(".") | map(tonumber? // 0);
+              def ver_gte(a; b): (a[0] > b[0]) or (a[0] == b[0] and a[1] > b[1]) or (a[0] == b[0] and a[1] == b[1] and (a[2] // 0) >= (b[2] // 0));
+              def ver_lt(a; b): (a[0] < b[0]) or (a[0] == b[0] and a[1] < b[1]) or (a[0] == b[0] and a[1] == b[1] and (a[2] // 0) < (b[2] // 0));
 
-            if [ -z "$CREATED_AT" ]; then
-              echo "  ⚠ No version date found for $POD_NAME"
+              ($constraint | ltrimstr("~> ") | parse_ver) as $min |
+              (if ($min | length) >= 3 then [$min[0], $min[1] + 1, 0]
+               elif ($min | length) == 2 then [$min[0] + 1, 0, 0]
+               else [999999, 0, 0] end) as $ceil |
+
+              [ .versions[]
+                | (.name | parse_ver) as $v
+                | select(ver_gte($v; $min) and ver_lt($v; $ceil))
+              ]
+              | sort_by(.name | parse_ver)
+              | last
+              | "\(.name)|\(.created_at)"
+            ')
+
+            if [ -z "$RESOLVED" ] || [ "$RESOLVED" = "null" ]; then
+              echo "  ⚠ Could not resolve version for $POD_NAME with constraint $VERSION_CONSTRAINT"
+              continue
+            fi
+
+            RESOLVED_VER=$(echo "$RESOLVED" | cut -d'|' -f1)
+            CREATED_AT=$(echo "$RESOLVED" | cut -d'|' -f2)
+
+            if [ -z "$CREATED_AT" ] || [ "$CREATED_AT" = "null" ]; then
+              echo "  ⚠ No version date found for $POD_NAME@$RESOLVED_VER"
               continue
             fi
 
             PUB_EPOCH=$(date -d "$CREATED_AT" +%s 2>/dev/null || echo 0)
             if [ "$PUB_EPOCH" -eq 0 ]; then
-              echo "  ⚠ Could not parse date for $POD_NAME: $CREATED_AT"
+              echo "  ⚠ Could not parse date for $POD_NAME@$RESOLVED_VER: $CREATED_AT"
               continue
             fi
 
             AGE_DAYS=$(( (NOW - PUB_EPOCH) / 86400 ))
             if [ "$AGE_DAYS" -lt "$QUARANTINE_DAYS" ]; then
-              echo "  ✗ FAIL: $POD_NAME latest version published $AGE_DAYS days ago (< $QUARANTINE_DAYS day quarantine) — $CREATED_AT"
+              echo "  ✗ FAIL: $POD_NAME@$RESOLVED_VER published $AGE_DAYS days ago (< $QUARANTINE_DAYS day quarantine) — $CREATED_AT"
               FAILED=1
             else
-              echo "  ✓ OK: $POD_NAME latest version published $AGE_DAYS days ago"
+              echo "  ✓ OK: $POD_NAME@$RESOLVED_VER published $AGE_DAYS days ago"
             fi
-          done
+          done < <(grep "s\.dependency" Critic.podspec)
 
           if [ "$FAILED" -eq 1 ]; then
             echo ""
