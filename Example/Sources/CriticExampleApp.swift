@@ -5,12 +5,12 @@ import Critic
 @main
 struct CriticExampleApp: SwiftUI.App {
     /// Configure before running locally: set to your Critic server URL for development,
-    /// or leave nil for production. You can also set the CRITIC_BASE_URL environment variable.
+    /// or leave nil for production.
     /// Example: URL(string: "http://localhost:8000")
     private static let customBaseURL: URL? = nil
 
     /// Configure before running locally: replace with your API token from
-    /// https://critic.inventiv.io/products, or set the CRITIC_API_TOKEN environment variable.
+    /// https://critic.inventiv.io/products.
     private static let apiToken = ""
 
     init() {
