@@ -2,6 +2,7 @@
 import UIKit
 #endif
 import Foundation
+import Network
 
 /// Collects device information using native iOS APIs.
 public struct DeviceInfo: Sendable {
@@ -43,6 +44,7 @@ public struct DeviceInfo: Sendable {
 
         let diskInfo = diskSpace()
         let memoryInfo = memoryStatus()
+        let networkInfo = networkStatus()
 
         return DeviceStatus(
             batteryCharging: batteryCharging,
@@ -52,15 +54,15 @@ public struct DeviceInfo: Sendable {
             diskPlatform: nil,
             diskTotal: diskInfo.total,
             diskUsable: diskInfo.free,
-            memoryActive: nil,
+            memoryActive: memoryInfo.active,
             memoryFree: memoryInfo.free,
-            memoryInactive: nil,
-            memoryPurgable: nil,
+            memoryInactive: memoryInfo.inactive,
+            memoryPurgable: memoryInfo.purgable,
             memoryTotal: memoryInfo.total,
-            memoryWired: nil,
-            networkCellConnected: nil,
+            memoryWired: memoryInfo.wired,
+            networkCellConnected: networkInfo.cellConnected,
             networkCellSignalBars: nil,
-            networkWifiConnected: nil,
+            networkWifiConnected: networkInfo.wifiConnected,
             networkWifiSignalBars: nil
         )
     }
@@ -103,10 +105,9 @@ public struct DeviceInfo: Sendable {
         return (free, total)
     }
 
-    /// Returns memory usage information.
-    private func memoryStatus() -> (free: Int64?, total: Int64?) {
+    /// Returns memory usage information including active, inactive, wired, purgeable, free, and total.
+    private func memoryStatus() -> (active: Int64?, free: Int64?, inactive: Int64?, purgable: Int64?, total: Int64?, wired: Int64?) {
         let total = Int64(ProcessInfo.processInfo.physicalMemory)
-        // Approximate free memory using available memory
         var pageSize: vm_size_t = 0
         host_page_size(mach_host_self(), &pageSize)
 
@@ -120,9 +121,39 @@ public struct DeviceInfo: Sendable {
         }
 
         if result == KERN_SUCCESS {
-            let free = Int64(stats.free_count) * Int64(pageSize)
-            return (free, total)
+            let page = Int64(pageSize)
+            let active = Int64(stats.active_count) * page
+            let free = Int64(stats.free_count) * page
+            let inactive = Int64(stats.inactive_count) * page
+            let purgable = Int64(stats.purgeable_count) * page
+            let wired = Int64(stats.wire_count) * page
+            return (active, free, inactive, purgable, total, wired)
         }
-        return (nil, total)
+        return (nil, nil, nil, nil, total, nil)
+    }
+
+    /// Returns network connectivity status using NWPathMonitor.
+    private func networkStatus() -> (wifiConnected: Bool?, cellConnected: Bool?) {
+        let monitor = NWPathMonitor()
+        let semaphore = DispatchSemaphore(value: 0)
+        var capturedPath: NWPath?
+
+        monitor.pathUpdateHandler = { path in
+            capturedPath = path
+            semaphore.signal()
+        }
+
+        let queue = DispatchQueue(label: "io.inventiv.critic.network-status")
+        monitor.start(queue: queue)
+        _ = semaphore.wait(timeout: .now() + 1.0)
+        monitor.cancel()
+
+        guard let path = capturedPath else {
+            return (nil, nil)
+        }
+
+        let wifiConnected = path.status == .satisfied && path.usesInterfaceType(.wifi)
+        let cellConnected = path.status == .satisfied && path.usesInterfaceType(.cellular)
+        return (wifiConnected, cellConnected)
     }
 }

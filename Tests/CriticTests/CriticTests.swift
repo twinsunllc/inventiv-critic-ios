@@ -405,6 +405,86 @@ import Foundation
     #expect(input.userIdentifier == nil)
 }
 
+// MARK: - DeviceStatus Additional Fields Tests
+
+@Test func deviceStatusMemoryFieldsDecoding() throws {
+    let json = """
+    {
+        "memory_active": 2147483648,
+        "memory_inactive": 1073741824,
+        "memory_wired": 268435456,
+        "memory_purgable": 536870912,
+        "memory_free": 134217728,
+        "memory_total": 8589934592
+    }
+    """
+    let status = try JSONDecoder().decode(DeviceStatus.self, from: Data(json.utf8))
+    #expect(status.memoryActive == 2_147_483_648)
+    #expect(status.memoryInactive == 1_073_741_824)
+    #expect(status.memoryWired == 268_435_456)
+    #expect(status.memoryPurgable == 536_870_912)
+    #expect(status.memoryFree == 134_217_728)
+    #expect(status.memoryTotal == 8_589_934_592)
+}
+
+@Test func deviceStatusNetworkFieldsDecoding() throws {
+    let json = """
+    {
+        "network_wifi_connected": true,
+        "network_cell_connected": false
+    }
+    """
+    let status = try JSONDecoder().decode(DeviceStatus.self, from: Data(json.utf8))
+    #expect(status.networkWifiConnected == true)
+    #expect(status.networkCellConnected == false)
+}
+
+@Test func deviceStatusMemoryFieldsRoundTrip() throws {
+    let original = DeviceStatus(
+        memoryActive: 2_147_483_648,
+        memoryFree: 134_217_728,
+        memoryInactive: 1_073_741_824,
+        memoryPurgable: 536_870_912,
+        memoryTotal: 8_589_934_592,
+        memoryWired: 268_435_456
+    )
+    let data = try JSONEncoder().encode(original)
+    let decoded = try JSONDecoder().decode(DeviceStatus.self, from: data)
+    #expect(decoded.memoryActive == original.memoryActive)
+    #expect(decoded.memoryInactive == original.memoryInactive)
+    #expect(decoded.memoryWired == original.memoryWired)
+    #expect(decoded.memoryPurgable == original.memoryPurgable)
+    #expect(decoded.memoryFree == original.memoryFree)
+    #expect(decoded.memoryTotal == original.memoryTotal)
+}
+
+@Test func deviceStatusNetworkFieldsRoundTrip() throws {
+    let original = DeviceStatus(networkCellConnected: false, networkWifiConnected: true)
+    let data = try JSONEncoder().encode(original)
+    let decoded = try JSONDecoder().decode(DeviceStatus.self, from: data)
+    #expect(decoded.networkWifiConnected == original.networkWifiConnected)
+    #expect(decoded.networkCellConnected == original.networkCellConnected)
+}
+
+@Test func deviceStatusMemoryFieldsNilWhenAbsent() throws {
+    let json = """
+    {"memory_total": 8589934592}
+    """
+    let status = try JSONDecoder().decode(DeviceStatus.self, from: Data(json.utf8))
+    #expect(status.memoryTotal == 8_589_934_592)
+    #expect(status.memoryActive == nil)
+    #expect(status.memoryInactive == nil)
+    #expect(status.memoryWired == nil)
+    #expect(status.memoryPurgable == nil)
+}
+
+@Test func deviceStatusNetworkFieldsNilWhenAbsent() throws {
+    let json = "{}"
+    let status = try JSONDecoder().decode(DeviceStatus.self, from: Data(json.utf8))
+    #expect(status.networkWifiConnected == nil)
+    #expect(status.networkCellConnected == nil)
+}
+
 // MARK: - Round-trip Encoding/Decoding Tests
 
 @Test func deviceStatusRoundTrip() throws {
