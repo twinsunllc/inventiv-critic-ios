@@ -146,10 +146,18 @@ public final class Critic: @unchecked Sendable {
         let deviceStatus: DeviceStatus? = nil
         #endif
 
+        var allAttachments = attachments ?? []
+
+        if #available(iOS 15.0, macOS 12.0, *) {
+            if let logAttachment = LogCapture.captureRecentLogs() {
+                allAttachments.append(logAttachment)
+            }
+        }
+
         return try await api.createBugReport(
             report: report,
             appInstallId: appInstallId,
-            attachments: attachments,
+            attachments: allAttachments.isEmpty ? nil : allAttachments,
             deviceStatus: deviceStatus
         )
     }
