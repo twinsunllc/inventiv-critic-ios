@@ -209,26 +209,6 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 }
 ```
 
-## API Client
-
-For advanced use cases, access the API client directly after initialization:
-
-```swift
-guard let api = Critic.shared.api else { return }
-
-// List bug reports
-let reports = try await api.listBugReports(appApiToken: "YOUR_APP_TOKEN")
-for report in reports.items {
-    print("\(report.id): \(report.description ?? "No description")")
-}
-
-// Get a single bug report
-let report = try await api.getBugReport(id: "report-uuid", appApiToken: "YOUR_APP_TOKEN")
-
-// List devices
-let devices = try await api.listDevices(appApiToken: "YOUR_APP_TOKEN")
-```
-
 ## Error Handling
 
 All API methods throw `CriticError` on failure:

@@ -220,106 +220,6 @@ private func mockAPI(baseURL: String = "https://critic.test.io", apiToken: Strin
     #expect(result.attachments?.first?.fileFileName == "log.txt")
 }
 
-// MARK: - List Bug Reports Tests
-
-@Test func listBugReportsRequestConstruction() async throws {
-    MockURLProtocol.reset()
-    MockURLProtocol.requestHandler = { request in
-        let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
-        return (response, Data("""
-        {"count": 0, "current_page": 1, "total_pages": 0, "bug_reports": []}
-        """.utf8))
-    }
-
-    let api = mockAPI()
-    _ = try await api.listBugReports(appApiToken: "app-tok", archived: true, deviceId: "dev-1", since: "2026-01-01")
-
-    let captured = MockURLProtocol.capturedRequests.first
-    #expect(captured?.httpMethod == "GET")
-    let urlString = captured?.url?.absoluteString ?? ""
-    #expect(urlString.contains("app_api_token=app-tok"))
-    #expect(urlString.contains("archived=true"))
-    #expect(urlString.contains("device_id=dev-1"))
-    #expect(urlString.contains("since=2026-01-01"))
-}
-
-@Test func listBugReportsParsesPaginatedResponse() async throws {
-    MockURLProtocol.reset()
-    MockURLProtocol.requestHandler = { _ in
-        let response = HTTPURLResponse(url: URL(string: "https://critic.test.io")!, statusCode: 200, httpVersion: nil, headerFields: nil)!
-        return (response, Data("""
-        {
-            "count": 2,
-            "current_page": 1,
-            "total_pages": 1,
-            "bug_reports": [
-                {"id": "br-1", "description": "First"},
-                {"id": "br-2", "description": "Second"}
-            ]
-        }
-        """.utf8))
-    }
-
-    let api = mockAPI()
-    let result = try await api.listBugReports(appApiToken: "tok")
-
-    #expect(result.count == 2)
-    #expect(result.currentPage == 1)
-    #expect(result.totalPages == 1)
-    #expect(result.items.count == 2)
-    #expect(result.items[0].id == "br-1")
-    #expect(result.items[1].description == "Second")
-}
-
-// MARK: - Get Bug Report Tests
-
-@Test func getBugReportRequestConstruction() async throws {
-    MockURLProtocol.reset()
-    MockURLProtocol.requestHandler = { request in
-        let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
-        return (response, Data("""
-        {"id": "br-uuid-123", "description": "Single report"}
-        """.utf8))
-    }
-
-    let api = mockAPI()
-    let result = try await api.getBugReport(id: "br-uuid-123", appApiToken: "app-tok")
-
-    let captured = MockURLProtocol.capturedRequests.first
-    #expect(captured?.httpMethod == "GET")
-    #expect(captured?.url?.absoluteString.contains("bug_reports/br-uuid-123") == true)
-    #expect(captured?.url?.absoluteString.contains("app_api_token=app-tok") == true)
-    #expect(result.id == "br-uuid-123")
-    #expect(result.description == "Single report")
-}
-
-// MARK: - List Devices Tests
-
-@Test func listDevicesRequestConstruction() async throws {
-    MockURLProtocol.reset()
-    MockURLProtocol.requestHandler = { request in
-        let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
-        return (response, Data("""
-        {
-            "count": 1,
-            "current_page": 1,
-            "total_pages": 1,
-            "devices": [{"id": "dev-1", "model": "iPhone15,2", "platform": "iOS"}]
-        }
-        """.utf8))
-    }
-
-    let api = mockAPI()
-    let result = try await api.listDevices(appApiToken: "app-tok")
-
-    let captured = MockURLProtocol.capturedRequests.first
-    #expect(captured?.httpMethod == "GET")
-    #expect(captured?.url?.absoluteString.contains("devices") == true)
-    #expect(captured?.url?.absoluteString.contains("app_api_token=app-tok") == true)
-    #expect(result.items.count == 1)
-    #expect(result.items[0].model == "iPhone15,2")
-}
-
 // MARK: - Error Handling Tests (HTTP Status Codes)
 
 @Test func apiReturns401Unauthorized() async throws {
@@ -331,7 +231,7 @@ private func mockAPI(baseURL: String = "https://critic.test.io", apiToken: Strin
 
     let api = mockAPI()
     do {
-        _ = try await api.listBugReports(appApiToken: "bad-token")
+        _ = try await api.createBugReport(report: BugReportInput(description: "test"), appInstallId: "inst")
         #expect(Bool(false), "Should have thrown")
     } catch let error as CriticError {
         #expect(error == .unauthorized)
@@ -347,7 +247,7 @@ private func mockAPI(baseURL: String = "https://critic.test.io", apiToken: Strin
 
     let api = mockAPI()
     do {
-        _ = try await api.listBugReports(appApiToken: "tok")
+        _ = try await api.createBugReport(report: BugReportInput(description: "test"), appInstallId: "inst")
         #expect(Bool(false), "Should have thrown")
     } catch let error as CriticError {
         #expect(error == .forbidden)
@@ -363,7 +263,7 @@ private func mockAPI(baseURL: String = "https://critic.test.io", apiToken: Strin
 
     let api = mockAPI()
     do {
-        _ = try await api.getBugReport(id: "nonexistent", appApiToken: "tok")
+        _ = try await api.createBugReport(report: BugReportInput(description: "test"), appInstallId: "inst")
         #expect(Bool(false), "Should have thrown")
     } catch let error as CriticError {
         #expect(error == .notFound)
@@ -415,7 +315,7 @@ private func mockAPI(baseURL: String = "https://critic.test.io", apiToken: Strin
 
     let api = mockAPI()
     do {
-        _ = try await api.listDevices(appApiToken: "tok")
+        _ = try await api.createBugReport(report: BugReportInput(description: "test"), appInstallId: "inst")
         #expect(Bool(false), "Should have thrown")
     } catch let error as CriticError {
         #expect(error == .unexpectedStatusCode(500))
@@ -431,7 +331,7 @@ private func mockAPI(baseURL: String = "https://critic.test.io", apiToken: Strin
 
     let api = mockAPI()
     do {
-        _ = try await api.listBugReports(appApiToken: "tok")
+        _ = try await api.createBugReport(report: BugReportInput(description: "test"), appInstallId: "inst")
         #expect(Bool(false), "Should have thrown")
     } catch let error as CriticError {
         #expect(error == .decodingFailed)

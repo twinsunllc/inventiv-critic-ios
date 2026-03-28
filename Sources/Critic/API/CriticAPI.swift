@@ -13,11 +13,6 @@ import Foundation
 ///
 /// ### Bug Reports
 /// - ``createBugReport(report:appInstallId:attachments:deviceStatus:)``
-/// - ``listBugReports(appApiToken:archived:deviceId:since:)``
-/// - ``getBugReport(id:appApiToken:)``
-///
-/// ### Devices
-/// - ``listDevices(appApiToken:)``
 public actor CriticAPI {
 
     /// The base URL for API requests (e.g. `https://critic.inventiv.io`).
@@ -124,76 +119,6 @@ public actor CriticAPI {
         urlRequest.httpMethod = "POST"
         urlRequest.setValue(formData.contentType, forHTTPHeaderField: "Content-Type")
         urlRequest.httpBody = formData.build()
-
-        return try await perform(urlRequest)
-    }
-
-    /// List bug reports for an app.
-    ///
-    /// - Parameters:
-    ///   - appApiToken: The app-specific API token.
-    ///   - archived: Filter by archived status. Pass `nil` for all reports.
-    ///   - deviceId: Filter by device ID. Pass `nil` for all devices.
-    ///   - since: Filter reports created after this ISO 8601 date string.
-    /// - Returns: A ``PaginatedResponse`` containing ``BugReport`` items.
-    /// - Throws: ``CriticError`` if the request fails.
-    public func listBugReports(
-        appApiToken: String,
-        archived: Bool? = nil,
-        deviceId: String? = nil,
-        since: String? = nil
-    ) async throws -> PaginatedResponse<BugReport> {
-        var url = Endpoints.bugReports(baseURL: baseURL)
-        var queryItems = [URLQueryItem(name: "app_api_token", value: appApiToken)]
-
-        if let archived {
-            queryItems.append(URLQueryItem(name: "archived", value: String(archived)))
-        }
-        if let deviceId {
-            queryItems.append(URLQueryItem(name: "device_id", value: deviceId))
-        }
-        if let since {
-            queryItems.append(URLQueryItem(name: "since", value: since))
-        }
-
-        url = url.appending(queryItems: queryItems)
-
-        var urlRequest = URLRequest(url: url)
-        urlRequest.httpMethod = "GET"
-
-        return try await perform(urlRequest)
-    }
-
-    /// Get a single bug report by ID.
-    ///
-    /// - Parameters:
-    ///   - id: The UUID string of the bug report.
-    ///   - appApiToken: The app-specific API token.
-    /// - Returns: The requested ``BugReport``.
-    /// - Throws: ``CriticError/notFound`` if the report does not exist, or another ``CriticError`` on failure.
-    public func getBugReport(id: String, appApiToken: String) async throws -> BugReport {
-        var url = Endpoints.bugReport(baseURL: baseURL, id: id)
-        url = url.appending(queryItems: [URLQueryItem(name: "app_api_token", value: appApiToken)])
-
-        var urlRequest = URLRequest(url: url)
-        urlRequest.httpMethod = "GET"
-
-        return try await perform(urlRequest)
-    }
-
-    // MARK: - Devices
-
-    /// List devices for an app.
-    ///
-    /// - Parameter appApiToken: The app-specific API token.
-    /// - Returns: A ``PaginatedResponse`` containing ``Device`` items.
-    /// - Throws: ``CriticError`` if the request fails.
-    public func listDevices(appApiToken: String) async throws -> PaginatedResponse<Device> {
-        var url = Endpoints.devices(baseURL: baseURL)
-        url = url.appending(queryItems: [URLQueryItem(name: "app_api_token", value: appApiToken)])
-
-        var urlRequest = URLRequest(url: url)
-        urlRequest.httpMethod = "GET"
 
         return try await perform(urlRequest)
     }
