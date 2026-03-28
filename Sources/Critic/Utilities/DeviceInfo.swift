@@ -2,6 +2,7 @@
 import UIKit
 #endif
 import Foundation
+import SystemConfiguration
 
 /// Collects device information using native iOS APIs.
 public struct DeviceInfo: Sendable {
@@ -43,6 +44,7 @@ public struct DeviceInfo: Sendable {
 
         let diskInfo = diskSpace()
         let memoryInfo = memoryStatus()
+        let networkInfo = networkStatus()
 
         return DeviceStatus(
             batteryCharging: batteryCharging,
@@ -52,15 +54,15 @@ public struct DeviceInfo: Sendable {
             diskPlatform: nil,
             diskTotal: diskInfo.total,
             diskUsable: diskInfo.free,
-            memoryActive: nil,
+            memoryActive: memoryInfo.active,
             memoryFree: memoryInfo.free,
-            memoryInactive: nil,
-            memoryPurgable: nil,
+            memoryInactive: memoryInfo.inactive,
+            memoryPurgable: memoryInfo.purgable,
             memoryTotal: memoryInfo.total,
-            memoryWired: nil,
-            networkCellConnected: nil,
+            memoryWired: memoryInfo.wired,
+            networkCellConnected: networkInfo.cellConnected,
             networkCellSignalBars: nil,
-            networkWifiConnected: nil,
+            networkWifiConnected: networkInfo.wifiConnected,
             networkWifiSignalBars: nil
         )
     }
@@ -103,10 +105,9 @@ public struct DeviceInfo: Sendable {
         return (free, total)
     }
 
-    /// Returns memory usage information.
-    private func memoryStatus() -> (free: Int64?, total: Int64?) {
+    /// Returns memory usage information including active, inactive, wired, purgeable, free, and total.
+    private func memoryStatus() -> (active: Int64?, free: Int64?, inactive: Int64?, purgable: Int64?, total: Int64?, wired: Int64?) {
         let total = Int64(ProcessInfo.processInfo.physicalMemory)
-        // Approximate free memory using available memory
         var pageSize: vm_size_t = 0
         host_page_size(mach_host_self(), &pageSize)
 
@@ -120,9 +121,41 @@ public struct DeviceInfo: Sendable {
         }
 
         if result == KERN_SUCCESS {
-            let free = Int64(stats.free_count) * Int64(pageSize)
-            return (free, total)
+            let page = Int64(pageSize)
+            let active = Int64(stats.active_count) * page
+            let free = Int64(stats.free_count) * page
+            let inactive = Int64(stats.inactive_count) * page
+            let purgable = Int64(stats.purgeable_count) * page
+            let wired = Int64(stats.wire_count) * page
+            return (active, free, inactive, purgable, total, wired)
         }
-        return (nil, total)
+        return (nil, nil, nil, nil, total, nil)
+    }
+
+    /// Returns network connectivity status using SCNetworkReachability (synchronous, non-blocking).
+    private func networkStatus() -> (wifiConnected: Bool?, cellConnected: Bool?) {
+        var zeroAddress = sockaddr()
+        zeroAddress.sa_len = UInt8(MemoryLayout<sockaddr>.size)
+        zeroAddress.sa_family = sa_family_t(AF_INET)
+
+        guard let reachability = SCNetworkReachabilityCreateWithAddress(nil, &zeroAddress) else {
+            return (nil, nil)
+        }
+
+        var flags: SCNetworkReachabilityFlags = []
+        guard SCNetworkReachabilityGetFlags(reachability, &flags) else {
+            return (nil, nil)
+        }
+
+        let isReachable = flags.contains(.reachable)
+        #if os(iOS)
+        let isCellular = flags.contains(.isWWAN)
+        #else
+        let isCellular = false
+        #endif
+
+        let wifiConnected = isReachable && !isCellular
+        let cellConnected = isReachable && isCellular
+        return (wifiConnected, cellConnected)
     }
 }
