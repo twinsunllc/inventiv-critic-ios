@@ -11,19 +11,8 @@ public enum Endpoints {
         baseURL.appending(path: "\(basePath)/ping")
     }
 
-    /// POST /api/v3/bug_reports (create)
-    /// GET  /api/v3/bug_reports (list)
+    /// POST /api/v3/bug_reports
     static func bugReports(baseURL: URL) -> URL {
         baseURL.appending(path: "\(basePath)/bug_reports")
-    }
-
-    /// GET /api/v3/bug_reports/:id
-    static func bugReport(baseURL: URL, id: String) -> URL {
-        baseURL.appending(path: "\(basePath)/bug_reports/\(id)")
-    }
-
-    /// GET /api/v3/devices
-    static func devices(baseURL: URL) -> URL {
-        baseURL.appending(path: "\(basePath)/devices")
     }
 }

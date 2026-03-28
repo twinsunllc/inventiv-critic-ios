@@ -1,9 +1,7 @@
 import Foundation
 
 /// Represents device information sent with reports.
-public struct Device: Codable, Sendable, Equatable, PaginatedItemKey {
-
-    public static let paginatedKey = "devices"
+public struct Device: Codable, Sendable, Equatable {
 
     /// The unique identifier (UUID) for this device.
     public let id: String?

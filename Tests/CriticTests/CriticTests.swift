@@ -178,113 +178,6 @@ import Foundation
     #expect(status.memoryTotal == nil)
 }
 
-// MARK: - PaginatedResponse Tests
-
-@Test func paginatedResponseBugReportsDecoding() throws {
-    let json = """
-    {
-        "count": 2,
-        "current_page": 1,
-        "total_pages": 1,
-        "bug_reports": [
-            {"id": "br-1", "description": "Bug 1"},
-            {"id": "br-2", "description": "Bug 2"}
-        ]
-    }
-    """
-    let response = try JSONDecoder().decode(PaginatedResponse<BugReport>.self, from: Data(json.utf8))
-    #expect(response.count == 2)
-    #expect(response.currentPage == 1)
-    #expect(response.totalPages == 1)
-    #expect(response.items.count == 2)
-    #expect(response.items[0].id == "br-1")
-    #expect(response.items[1].id == "br-2")
-}
-
-@Test func paginatedResponseDevicesDecoding() throws {
-    let json = """
-    {
-        "count": 1,
-        "current_page": 1,
-        "total_pages": 1,
-        "devices": [
-            {"id": "dev-1", "model": "iPhone15,2"}
-        ]
-    }
-    """
-    let response = try JSONDecoder().decode(PaginatedResponse<Device>.self, from: Data(json.utf8))
-    #expect(response.count == 1)
-    #expect(response.items.count == 1)
-    #expect(response.items[0].id == "dev-1")
-    #expect(response.items[0].model == "iPhone15,2")
-}
-
-@Test func paginatedResponseEmptyItems() throws {
-    let json = """
-    {
-        "count": 0,
-        "current_page": 1,
-        "total_pages": 0
-    }
-    """
-    let response = try JSONDecoder().decode(PaginatedResponse<BugReport>.self, from: Data(json.utf8))
-    #expect(response.count == 0)
-    #expect(response.items.isEmpty)
-}
-
-@Test func paginatedResponseBugReportsRoundTrip() throws {
-    let original = PaginatedResponse<BugReport>(
-        count: 1,
-        currentPage: 1,
-        totalPages: 1,
-        items: [BugReport(id: "br-1", description: "Test")]
-    )
-    let data = try JSONEncoder().encode(original)
-    let decoded = try JSONDecoder().decode(PaginatedResponse<BugReport>.self, from: data)
-    #expect(decoded.count == original.count)
-    #expect(decoded.currentPage == original.currentPage)
-    #expect(decoded.totalPages == original.totalPages)
-    #expect(decoded.items.count == 1)
-    #expect(decoded.items[0].id == "br-1")
-}
-
-@Test func paginatedResponseDevicesRoundTrip() throws {
-    let original = PaginatedResponse<Device>(
-        count: 2,
-        currentPage: 1,
-        totalPages: 1,
-        items: [
-            Device(id: "dev-1", model: "iPhone15,2"),
-            Device(id: "dev-2", model: "iPad14,1")
-        ]
-    )
-    let data = try JSONEncoder().encode(original)
-    let decoded = try JSONDecoder().decode(PaginatedResponse<Device>.self, from: data)
-    #expect(decoded.count == 2)
-    #expect(decoded.items.count == 2)
-    #expect(decoded.items[0].id == "dev-1")
-    #expect(decoded.items[1].model == "iPad14,1")
-}
-
-@Test func paginatedResponseUnknownTypeDecodesViaFallback() throws {
-    // AppVersion doesn't conform to PaginatedItemKey, so the decoder
-    // should fall back to trying all non-metadata keys.
-    let json = """
-    {
-        "count": 1,
-        "current_page": 1,
-        "total_pages": 1,
-        "app_versions": [
-            {"id": "ver-1", "code": "10", "name": "1.0.0"}
-        ]
-    }
-    """
-    let response = try JSONDecoder().decode(PaginatedResponse<AppVersion>.self, from: Data(json.utf8))
-    #expect(response.count == 1)
-    #expect(response.items.count == 1)
-    #expect(response.items[0].id == "ver-1")
-}
-
 // MARK: - PingRequest Tests
 
 @Test func pingRequestEncoding() throws {
@@ -446,18 +339,6 @@ import Foundation
     let base = try #require(URL(string: "https://critic.inventiv.io"))
     let url = Endpoints.bugReports(baseURL: base)
     #expect(url.absoluteString == "https://critic.inventiv.io/api/v3/bug_reports")
-}
-
-@Test func endpointsBugReportByIdURL() throws {
-    let base = try #require(URL(string: "https://critic.inventiv.io"))
-    let url = Endpoints.bugReport(baseURL: base, id: "some-uuid")
-    #expect(url.absoluteString == "https://critic.inventiv.io/api/v3/bug_reports/some-uuid")
-}
-
-@Test func endpointsDevicesURL() throws {
-    let base = try #require(URL(string: "https://critic.inventiv.io"))
-    let url = Endpoints.devices(baseURL: base)
-    #expect(url.absoluteString == "https://critic.inventiv.io/api/v3/devices")
 }
 
 // MARK: - CriticAPI Tests
