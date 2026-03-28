@@ -5,17 +5,14 @@ import OSLog
 
 // MARK: - LogCapture Tests
 
-@available(iOS 15.0, macOS 12.0, *)
 @Test func logCaptureMaxEntriesIs500() {
     #expect(LogCapture.maxEntries == 500)
 }
 
-@available(iOS 15.0, macOS 12.0, *)
 @Test func logCaptureMaxTimeIntervalIs300Seconds() {
     #expect(LogCapture.maxTimeInterval == 300)
 }
 
-@available(iOS 15.0, macOS 12.0, *)
 @Test func logCaptureDebuggerCheckReturnsBool() {
     // In a test runner, the debugger may or may not be attached.
     // We just verify the function returns without crashing.
@@ -23,7 +20,6 @@ import OSLog
     #expect(result == true || result == false)
 }
 
-@available(iOS 15.0, macOS 12.0, *)
 @Test func logCaptureRecentLogsReturnsCorrectFilename() {
     // When running in a test harness, the debugger is typically attached,
     // so captureRecentLogs() returns nil. This is expected behavior.
@@ -36,7 +32,6 @@ import OSLog
     // Either way, the call should not throw or crash.
 }
 
-@available(iOS 15.0, macOS 12.0, *)
 @Test func logCaptureEntryTimestampFormat() {
     // Create a known date and verify the formatting.
     // OSLogEntry is not directly constructable, so we test the formatter pattern

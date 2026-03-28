@@ -148,10 +148,8 @@ public final class Critic: @unchecked Sendable {
 
         var allAttachments = attachments ?? []
 
-        if #available(iOS 15.0, macOS 12.0, *) {
-            if let logAttachment = LogCapture.captureRecentLogs() {
-                allAttachments.append(logAttachment)
-            }
+        if let logAttachment = LogCapture.captureRecentLogs() {
+            allAttachments.append(logAttachment)
         }
 
         return try await api.createBugReport(

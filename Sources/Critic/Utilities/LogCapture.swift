@@ -6,7 +6,6 @@ import OSLog
 ///
 /// This mirrors the Android SDK's logcat capture behavior, automatically attaching
 /// the last 500 log entries (or last 5 minutes, whichever is less) to each bug report.
-@available(iOS 15.0, macOS 12.0, *)
 enum LogCapture {
 
     /// Maximum number of log entries to include.
@@ -28,13 +27,31 @@ enum LogCapture {
 
         do {
             let store = try OSLogStore(scope: .currentProcessIdentifier)
-            let position = store.position(timeIntervalSinceLatestBoot: -maxTimeInterval)
+            let position = store.position(date: Date().addingTimeInterval(-maxTimeInterval))
             let entries = try store.getEntries(at: position)
 
-            let formatted = entries
-                .compactMap { $0 as? OSLogEntryLog }
-                .suffix(maxEntries)
-                .map { formatEntry($0) }
+            // Use a circular buffer to keep only the last `maxEntries` without
+            // materializing the entire sequence into an array first.
+            var ring = [OSLogEntryLog]()
+            ring.reserveCapacity(maxEntries)
+            var count = 0
+            for entry in entries {
+                guard let logEntry = entry as? OSLogEntryLog else { continue }
+                if count < maxEntries {
+                    ring.append(logEntry)
+                } else {
+                    ring[count % maxEntries] = logEntry
+                }
+                count += 1
+            }
+
+            let formatted: [String]
+            if count <= maxEntries {
+                formatted = ring.map { formatEntry($0) }
+            } else {
+                let start = count % maxEntries
+                formatted = (ring[start...] + ring[..<start]).map { formatEntry($0) }
+            }
 
             guard !formatted.isEmpty else { return nil }
 
