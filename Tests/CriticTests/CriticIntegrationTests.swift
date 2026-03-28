@@ -9,7 +9,7 @@ import Foundation
 /// server. To run them against a local instance:
 ///
 ///     CRITIC_BASE_URL=http://localhost:8000 \
-///     CRITIC_API_TOKEN=puZh4G2f1j9jwFSDrPus2ZtN \
+///     CRITIC_API_TOKEN=your-api-token \
 ///     swift test --filter CriticIntegrationTests
 ///
 /// The tests use the CriticAPI actor directly so they work on macOS without
@@ -20,22 +20,39 @@ import Foundation
 struct CriticIntegrationTests {
 
     /// Reads configuration from environment variables.
+    /// Tests are skipped if the required environment variables are not set.
     private var baseURL: URL {
-        let urlString = ProcessInfo.processInfo.environment["CRITIC_BASE_URL"] ?? "http://localhost:8000"
-        return URL(string: urlString)!
+        get throws {
+            guard let urlString = ProcessInfo.processInfo.environment["CRITIC_BASE_URL"],
+                  let url = URL(string: urlString) else {
+                throw SkipError("CRITIC_BASE_URL environment variable is not set")
+            }
+            return url
+        }
     }
 
     private var apiToken: String {
-        ProcessInfo.processInfo.environment["CRITIC_API_TOKEN"] ?? "puZh4G2f1j9jwFSDrPus2ZtN"
+        get throws {
+            guard let token = ProcessInfo.processInfo.environment["CRITIC_API_TOKEN"], !token.isEmpty else {
+                throw SkipError("CRITIC_API_TOKEN environment variable is not set")
+            }
+            return token
+        }
+    }
+
+    /// Lightweight error used to skip tests when env vars are missing.
+    private struct SkipError: Error, CustomStringConvertible {
+        let description: String
+        init(_ description: String) { self.description = description }
     }
 
     // MARK: - Step 1: Ping (register device + app install)
 
     @Test func pingRegistersAppInstall() async throws {
-        let api = CriticAPI(baseURL: baseURL, apiToken: apiToken)
+        let api = try CriticAPI(baseURL: baseURL, apiToken: apiToken)
 
         let pingRequest = PingRequest(
-            apiToken: apiToken,
+            apiToken: try apiToken,
             app: AppInfo(
                 name: "CriticIntegrationTest",
                 package: "io.inventiv.critic.integration-test",
@@ -61,11 +78,11 @@ struct CriticIntegrationTests {
     // MARK: - Step 2: Submit a bug report
 
     @Test func submitBugReport() async throws {
-        let api = CriticAPI(baseURL: baseURL, apiToken: apiToken)
+        let api = try CriticAPI(baseURL: baseURL, apiToken: apiToken)
 
         // First, ping to get an app install ID
         let pingRequest = PingRequest(
-            apiToken: apiToken,
+            apiToken: try apiToken,
             app: AppInfo(
                 name: "CriticIntegrationTest",
                 package: "io.inventiv.critic.integration-test",
@@ -106,11 +123,11 @@ struct CriticIntegrationTests {
     // MARK: - Full flow: ping + submit with attachment
 
     @Test func fullFlowWithAttachment() async throws {
-        let api = CriticAPI(baseURL: baseURL, apiToken: apiToken)
+        let api = try CriticAPI(baseURL: baseURL, apiToken: apiToken)
 
         // Ping
         let appInstall = try await api.ping(PingRequest(
-            apiToken: apiToken,
+            apiToken: try apiToken,
             app: AppInfo(
                 name: "CriticIntegrationTest",
                 package: "io.inventiv.critic.integration-test",

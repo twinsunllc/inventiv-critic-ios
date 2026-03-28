@@ -4,13 +4,14 @@ import Critic
 
 @main
 struct CriticExampleApp: App {
-    /// Set this to your local Critic server URL for development, or nil for production.
+    /// Configure before running locally: set to your Critic server URL for development,
+    /// or leave nil for production. You can also set the CRITIC_BASE_URL environment variable.
     /// Example: URL(string: "http://localhost:8000")
     private static let customBaseURL: URL? = nil
 
-    /// Replace with your API token from https://critic.inventiv.io/products
-    /// or use a local development token.
-    private static let apiToken = "YOUR_API_TOKEN"
+    /// Configure before running locally: replace with your API token from
+    /// https://critic.inventiv.io/products, or set the CRITIC_API_TOKEN environment variable.
+    private static let apiToken = ""
 
     init() {
         Task {

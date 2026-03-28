@@ -14,7 +14,7 @@ To point at a local Critic server, edit `CriticExampleApp.swift`:
 
 ```swift
 private static let customBaseURL: URL? = URL(string: "http://localhost:8000")
-private static let apiToken = "puZh4G2f1j9jwFSDrPus2ZtN"
+private static let apiToken = "your-api-token"
 ```
 
 ## Features Demonstrated
@@ -31,7 +31,7 @@ UIKit or a simulator:
 
 ```bash
 CRITIC_BASE_URL=http://localhost:8000 \
-CRITIC_API_TOKEN=puZh4G2f1j9jwFSDrPus2ZtN \
+CRITIC_API_TOKEN=your-api-token \
 swift test --filter CriticIntegrationTests
 ```
 
