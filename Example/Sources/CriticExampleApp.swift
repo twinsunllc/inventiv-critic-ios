@@ -3,7 +3,7 @@ import SwiftUI
 import Critic
 
 @main
-struct CriticExampleApp: App {
+struct CriticExampleApp: SwiftUI.App {
     /// Configure before running locally: set to your Critic server URL for development,
     /// or leave nil for production. You can also set the CRITIC_BASE_URL environment variable.
     /// Example: URL(string: "http://localhost:8000")

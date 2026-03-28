@@ -2,11 +2,17 @@ import Testing
 import Foundation
 @testable import Critic
 
+/// Whether the integration test environment variables are configured.
+private let criticIntegrationConfigured: Bool = {
+    ProcessInfo.processInfo.environment["CRITIC_BASE_URL"] != nil
+        && !(ProcessInfo.processInfo.environment["CRITIC_API_TOKEN"] ?? "").isEmpty
+}()
+
 /// Integration tests that demonstrate the full Critic SDK flow:
 /// initialize (ping) -> submit a bug report.
 ///
-/// By default these tests are disabled because they require a running Critic
-/// server. To run them against a local instance:
+/// These tests are skipped at runtime unless the required environment variables
+/// are set. To run them against a local instance:
 ///
 ///     CRITIC_BASE_URL=http://localhost:8000 \
 ///     CRITIC_API_TOKEN=your-api-token \
@@ -15,35 +21,27 @@ import Foundation
 /// The tests use the CriticAPI actor directly so they work on macOS without
 /// UIKit (the high-level `Critic.shared.initialize()` requires UIKit for
 /// device info collection).
-@Suite(.disabled("Requires a running Critic server; set CRITIC_BASE_URL and CRITIC_API_TOKEN to enable"),
+@Suite(.enabled(if: criticIntegrationConfigured,
+                "Requires CRITIC_BASE_URL and CRITIC_API_TOKEN environment variables"),
        .tags(.integration))
 struct CriticIntegrationTests {
 
     /// Reads configuration from environment variables.
-    /// Tests are skipped if the required environment variables are not set.
     private var baseURL: URL {
         get throws {
-            guard let urlString = ProcessInfo.processInfo.environment["CRITIC_BASE_URL"],
-                  let url = URL(string: urlString) else {
-                throw SkipError("CRITIC_BASE_URL environment variable is not set")
-            }
-            return url
+            let urlString = try #require(ProcessInfo.processInfo.environment["CRITIC_BASE_URL"],
+                                         "CRITIC_BASE_URL environment variable is not set")
+            return try #require(URL(string: urlString), "CRITIC_BASE_URL is not a valid URL")
         }
     }
 
     private var apiToken: String {
         get throws {
-            guard let token = ProcessInfo.processInfo.environment["CRITIC_API_TOKEN"], !token.isEmpty else {
-                throw SkipError("CRITIC_API_TOKEN environment variable is not set")
-            }
+            let token = try #require(ProcessInfo.processInfo.environment["CRITIC_API_TOKEN"],
+                                     "CRITIC_API_TOKEN environment variable is not set")
+            try #require(!token.isEmpty, "CRITIC_API_TOKEN environment variable is empty")
             return token
         }
-    }
-
-    /// Lightweight error used to skip tests when env vars are missing.
-    private struct SkipError: Error, CustomStringConvertible {
-        let description: String
-        init(_ description: String) { self.description = description }
     }
 
     // MARK: - Step 1: Ping (register device + app install)
