@@ -1,6 +1,19 @@
 import Foundation
 
 /// Errors that can occur when interacting with the Critic SDK.
+///
+/// These errors map to specific HTTP status codes returned by the Critic API,
+/// as well as client-side conditions like network failures and decoding errors.
+///
+/// ```swift
+/// do {
+///     let report = try await Critic.shared.submitReport(input)
+/// } catch CriticError.unauthorized {
+///     // Handle invalid API token
+/// } catch CriticError.notInitialized {
+///     // SDK was not initialized
+/// }
+/// ```
 public enum CriticError: Error, Sendable, Equatable {
 
     /// The API token is invalid (HTTP 401).

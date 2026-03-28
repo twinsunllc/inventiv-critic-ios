@@ -1,18 +1,40 @@
 import Foundation
 
 /// Handles communication with the Critic v3 REST API.
+///
+/// `CriticAPI` is an actor that provides type-safe access to all Critic API endpoints.
+/// It is typically accessed through ``Critic/api`` after SDK initialization, but can also
+/// be created directly for custom configurations.
+///
+/// ## Topics
+///
+/// ### Registration
+/// - ``ping(_:)``
+///
+/// ### Bug Reports
+/// - ``createBugReport(report:appInstallId:attachments:deviceStatus:)``
+/// - ``listBugReports(appApiToken:archived:deviceId:since:)``
+/// - ``getBugReport(id:appApiToken:)``
+///
+/// ### Devices
+/// - ``listDevices(appApiToken:)``
 public actor CriticAPI {
 
-    /// The base URL for API requests (e.g. "https://critic.inventiv.io").
+    /// The base URL for API requests (e.g. `https://critic.inventiv.io`).
     public let baseURL: URL
 
-    /// The organization API token for POST endpoints.
+    /// The organization API token used for authenticated POST endpoints.
     public let apiToken: String
 
     private let session: URLSession
     private let decoder: JSONDecoder
 
     /// Creates a new API client.
+    ///
+    /// - Parameters:
+    ///   - baseURL: The base URL of the Critic API server.
+    ///   - apiToken: The organization API token for authentication.
+    ///   - session: The URL session to use for requests. Defaults to `.shared`.
     public init(baseURL: URL, apiToken: String, session: URLSession = .shared) {
         self.baseURL = baseURL
         self.apiToken = apiToken
@@ -23,6 +45,13 @@ public actor CriticAPI {
     // MARK: - Ping
 
     /// Register an app install with the Critic API.
+    ///
+    /// Sends device and app information to the server and receives an app install ID
+    /// that is used for subsequent API calls.
+    ///
+    /// - Parameter request: The ping request containing app, device, and status information.
+    /// - Returns: The ``AppInstall`` with the server-assigned install ID.
+    /// - Throws: ``CriticError`` if the request fails.
     public func ping(_ request: PingRequest) async throws -> AppInstall {
         let url = Endpoints.ping(baseURL: baseURL)
         let body = try JSONEncoder().encode(request)
@@ -39,6 +68,17 @@ public actor CriticAPI {
     // MARK: - Bug Reports
 
     /// Create a bug report with optional file attachments.
+    ///
+    /// Submits a bug report as multipart form data, including optional file attachments
+    /// and device status information.
+    ///
+    /// - Parameters:
+    ///   - report: The bug report input data.
+    ///   - appInstallId: The app install ID from a prior ``ping(_:)`` call.
+    ///   - attachments: Optional file attachments to include with the report.
+    ///   - deviceStatus: Optional device status snapshot at the time of the report.
+    /// - Returns: The created ``BugReport`` as returned by the server.
+    /// - Throws: ``CriticError`` if the request fails.
     public func createBugReport(
         report: BugReportInput,
         appInstallId: String,
@@ -89,6 +129,14 @@ public actor CriticAPI {
     }
 
     /// List bug reports for an app.
+    ///
+    /// - Parameters:
+    ///   - appApiToken: The app-specific API token.
+    ///   - archived: Filter by archived status. Pass `nil` for all reports.
+    ///   - deviceId: Filter by device ID. Pass `nil` for all devices.
+    ///   - since: Filter reports created after this ISO 8601 date string.
+    /// - Returns: A ``PaginatedResponse`` containing ``BugReport`` items.
+    /// - Throws: ``CriticError`` if the request fails.
     public func listBugReports(
         appApiToken: String,
         archived: Bool? = nil,
@@ -117,6 +165,12 @@ public actor CriticAPI {
     }
 
     /// Get a single bug report by ID.
+    ///
+    /// - Parameters:
+    ///   - id: The UUID string of the bug report.
+    ///   - appApiToken: The app-specific API token.
+    /// - Returns: The requested ``BugReport``.
+    /// - Throws: ``CriticError/notFound`` if the report does not exist, or another ``CriticError`` on failure.
     public func getBugReport(id: String, appApiToken: String) async throws -> BugReport {
         var url = Endpoints.bugReport(baseURL: baseURL, id: id)
         url = url.appending(queryItems: [URLQueryItem(name: "app_api_token", value: appApiToken)])
@@ -130,6 +184,10 @@ public actor CriticAPI {
     // MARK: - Devices
 
     /// List devices for an app.
+    ///
+    /// - Parameter appApiToken: The app-specific API token.
+    /// - Returns: A ``PaginatedResponse`` containing ``Device`` items.
+    /// - Throws: ``CriticError`` if the request fails.
     public func listDevices(appApiToken: String) async throws -> PaginatedResponse<Device> {
         var url = Endpoints.devices(baseURL: baseURL)
         url = url.appending(queryItems: [URLQueryItem(name: "app_api_token", value: appApiToken)])

@@ -1,197 +1,283 @@
-[![Version](https://img.shields.io/cocoapods/v/Critic.svg?style=flat)](http://cocoapods.org/pods/Critic)
-[![License](https://img.shields.io/cocoapods/l/Critic.svg?style=flat)](http://cocoapods.org/pods/Critic)
-[![Platform](https://img.shields.io/cocoapods/p/Critic.svg?style=flat)](http://cocoapods.org/pods/Critic)
+# Inventiv Critic iOS SDK
 
-# Inventiv Critic iOS Library
+[![CI](https://github.com/twinsunllc/inventiv-critic-ios/actions/workflows/ci.yml/badge.svg)](https://github.com/twinsunllc/inventiv-critic-ios/actions/workflows/ci.yml)
+[![Swift 6.0](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org)
+[![Platforms](https://img.shields.io/badge/Platforms-iOS%2016+-blue.svg)](https://developer.apple.com/ios/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-Use this library to add [Inventiv Critic](https://inventiv.io/critic/) to your iOS app.
-
-![Critic iOS feedback reporting screen](https://assets.inventiv.io/github/inventiv-critic-ios/critic-ios-half-shot-feedback-screen.png)
-
-## Example
-
-To run the example project, clone the repo, and run `pod install` from the Example directory first.
+A Swift SDK for collecting actionable customer feedback via [Inventiv Critic](https://inventiv.io/critic/). Built with modern Swift concurrency (async/await), strict Sendable conformance, and zero external dependencies.
 
 ## Installation
 
-1. Add the Critic pod to your `Podfile`.
+### Swift Package Manager (Recommended)
+
+Add the package to your `Package.swift` dependencies:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/twinsunllc/inventiv-critic-ios.git", from: "1.0.0")
+]
+```
+
+Then add `"Critic"` to the target's dependencies:
+
+```swift
+.target(
+    name: "YourApp",
+    dependencies: [
+        .product(name: "Critic", package: "inventiv-critic-ios")
+    ]
+)
+```
+
+Or in Xcode: **File > Add Package Dependencies...** and enter:
+
+```
+https://github.com/twinsunllc/inventiv-critic-ios
+```
+
+### CocoaPods
+
+Add `Critic` to your `Podfile`:
+
 ```ruby
-pod 'Critic'
+pod 'Critic', '~> 1.0'
 ```
-2. Find your Product Access Token in the [Critic Web Portal](https://critic.inventiv.io/products) by viewing your Product's details.
-3. Initialize Critic by starting it from your `AppDelegate`.
+
+Then run:
+
+```bash
+bundle exec pod install
+```
+
+## Quick Start
+
+### 1. Initialize the SDK
+
+Call `initialize` early in your app lifecycle — typically in your `AppDelegate` or `App` struct:
+
 ```swift
-// Swift
-Critic.instance().start("YOUR_PRODUCT_ACCESS_TOKEN")
-```
+import Critic
 
-```objective-c
-// Objective-C
-[[Critic instance] start:@"YOUR_PRODUCT_ACCESS_TOKEN"];
-```
-### Configuration
-
-#### Shake to Send Feedback Report
-By default, Critic will prompt your users for feedback when they shake their device. You can disable this if desired.
-```swift
-// Swift
-Critic.instance().preventShakeDetection()
-```
-
-```objective-c
-// Objective-C
-[[Critic instance] preventShakeDetection];
-```
-
-#### Log Capture
-
-By default, devices that are not connected to a debug session will pipe console output (`stderr` and `stdout`) to a log file, which is 
-included with submitted Reports. You can disable this behavior prior to starting Critic.
-```swift
-// Swift
-Critic.instance().preventLogCapture()
-```
-
-```objective-c
-// Objective-C
-[[Critic instance] preventLogCapture];
-```
-
-If you are running a simulator and want to capture logs from the console, you can explicitly start log capture yourself.
-```swift
-// Swift
-Critic.instance().startLogCapture()
-```
-
-```objective-c
-// Objective-C
-[[Critic instance] startLogCapture];
-```
-
-## Sending Customer Feedback Reports
-
-You can show the default feedback report screen any time you like by calling the following method from a `UIViewController`.
-```swift
-// Swift
-Critic.instance().showDefaultFeedbackScreen(self)
-```
-
-```objective-c
-// Objective-C
-[[Critic instance] showDefaultFeedbackScreen:self];
-```
-
-### Change Text on Default Feedback Screens.
-
-The text shown on the default feedback report screen and the shake detection dialog can be customized to your liking.
-```swift
-// Swift
-Critic.instance().setDefaultShakeNotificationTitle("Easy, easy!")
-Critic.instance().setDefaultShakeNotificationMessage("Do you want to send us feedback?")
-
-Critic.instance().setDefaultFeedbackScreenTitle("Submit Feedback")
-Critic.instance().setDefaultFeedbackScreenDescriptionPlaceholder("What's happening?\n\nPlease describe your problem or suggestion in as much detail as possible. Thank you for helping us out! 🙂");
-```
-
-```objective-c
-// Objective-C
-[[Critic instance] setDefaultShakeNotificationTitle:@"Easy, easy!"];
-[[Critic instance] setDefaultShakeNotificationMessage:@"Do you want to send us feedback?"];
-
-[[Critic instance] setDefaultFeedbackScreenTitle:@"Submit Feedback"];
-[[Critic instance] setDefaultFeedbackScreenDescriptionPlaceholder:@"What's happening?\n\nPlease describe your problem or suggestion in as much detail as possible. Thank you for helping us out! 🙂"];
-``` 
-
-### Sending Product-Specific Metadata with Reports
-
-You can add product-specific metadata through adding entries to the `Critic.instance().productMetadata` dictionary.
-```swift
-// Swift
-Critic.instance().productMetadata["email"] = "test@example.com"
-```
-
-```objective-c
-// Objective-C
-[[[Critic instance] productMetadata] setObject:@"test@example.com" forKey:@"email"];
-```
-
-### Sending Device-Specific Metadata
-
-You can add device-specific metadata through adding entries to the `Critic.instance().deviceMetadata` dictionary.
-```swift
-// Swift
-Critic.instance().deviceMetadata["device_uuid"] = "abc123"
-```
-
-```objective-c
-// Objective-C
-[[[Critic instance] deviceMetadata] setObject:@"abc123" forKey:@"device_uuid"];
-```
-
-Be sure to set your metadata values prior to calling `Critic.instance().start()` if you wish to include the metadata with every device ping.
-Metdata added after starting will only be added to bug report submissions.
-
-## Customizing Feedback Reports
-
-Use the `NVCReportCreator` to build your own reports for custom user experiences or other use cases. Perform `NVCReportCreator` work on a background thread.
-```swift
-// Swift
-let reportCreator = NVCReportCreator()
-reportCreator.description = "This is user-entered text about the idea or experience they wish to report."
-reportCreator.metadata["Whatever key you want"] = "Whatever value you want"
-reportCreator.attachmentFilePaths.add("/absolute/path/to/desired/file.txt")
-reportCreator.create({(success: Bool, error: Error?) in
-    if success {
-        NSLog("Feedback has been submitted!")
+@main
+struct MyApp: App {
+    init() {
+        Task {
+            try await Critic.shared.initialize(apiToken: "YOUR_API_TOKEN")
+        }
     }
-    else {
-        NSLog("Feedback submission failed.")
+
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+        }
     }
-})
+}
 ```
 
-```objective-c
-// Objective-C
-NVCReportCreator *reportCreator = [NVCReportCreator new];
-reportCreator.description = @"This is user-entered text about the idea or experience they wish to report.";
-[report.metadata setObject:@"Whatever value you like" forKey:@"Whatever key you want"];
-[report.attachmentFilePaths addObject:@"/absolute/path/to/desired/file.txt"];
-[reportCreator create:^(BOOL success, NSError *error){
-    if(success){
-        NSLog(@"Feedback has been submitted!");
-    } else {
-        NSLog(@"Feedback submission failed.");
+Or in a UIKit `AppDelegate`:
+
+```swift
+import Critic
+
+@main
+class AppDelegate: UIResponder, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+    ) -> Bool {
+        Task {
+            try await Critic.shared.initialize(apiToken: "YOUR_API_TOKEN")
+        }
+        return true
     }
-}];
+}
 ```
 
-## Viewing Feedback Reports
-Visit the [Critic web portal](https://critic.inventiv.io/) to view submitted reports. Below is some of the device and app-specific information included with every iOS report.
+Find your API token in the [Critic Web Portal](https://critic.inventiv.io/products) under your product's details.
 
-![Critic iOS app info as view in the web portal](https://assets.inventiv.io/github/inventiv-critic-ios/critic-ios-app-info.png)
-![Critic iOS device info as view in the web portal](https://assets.inventiv.io/github/inventiv-critic-ios/critic-ios-device-info.png)
+### 2. Submit Feedback
 
-## Library Development
+Submit a bug report programmatically:
 
-The following steps are only necessary if you plan to contribute to this library.
-You do not need to do these steps if you simply wish to use Critic in your app.
+```swift
+let input = BugReportInput(
+    description: "App crashes when tapping the profile button",
+    metadata: ["screen": "profile", "user_tier": "premium"],
+    stepsToReproduce: "1. Open app\n2. Tap Profile\n3. App crashes",
+    userIdentifier: "user@example.com"
+)
 
-### Setup
+do {
+    let report = try await Critic.shared.submitReport(input)
+    print("Report submitted: \(report.id)")
+} catch {
+    print("Failed to submit: \(error)")
+}
+```
+
+### 3. Submit with Attachments
+
+Include screenshots or log files with your report:
+
+```swift
+let screenshotData = try Data(contentsOf: screenshotURL)
+
+let report = try await Critic.shared.submitReport(
+    BugReportInput(description: "UI layout broken on iPad"),
+    attachments: [
+        (filename: "screenshot.png", mimeType: "image/png", data: screenshotData)
+    ]
+)
+```
+
+## Built-in UI
+
+### SwiftUI Feedback View
+
+Present the built-in feedback form in SwiftUI:
+
+```swift
+import Critic
+
+struct ContentView: View {
+    @State private var showFeedback = false
+
+    var body: some View {
+        Button("Send Feedback") {
+            showFeedback = true
+        }
+        .sheet(isPresented: $showFeedback) {
+            FeedbackView(
+                onSubmit: { report in
+                    showFeedback = false
+                    print("Submitted: \(report.id)")
+                },
+                onCancel: {
+                    showFeedback = false
+                },
+                userIdentifier: "user@example.com"
+            )
+        }
+    }
+}
+```
+
+### UIKit Feedback View Controller
+
+Use `FeedbackViewController` in UIKit apps:
+
+```swift
+import Critic
+
+let feedbackVC = FeedbackViewController()
+feedbackVC.userIdentifier = "user@example.com"
+feedbackVC.onSubmit = { report in
+    print("Submitted: \(report.id)")
+}
+feedbackVC.onCancel = {
+    print("Cancelled")
+}
+feedbackVC.modalPresentationStyle = .formSheet
+present(feedbackVC, animated: true)
+```
+
+### Shake to Send Feedback
+
+Enable shake-to-report using `ShakeDetectingWindow`:
+
+```swift
+import Critic
+
+class SceneDelegate: UIResponder, UIWindowSceneDelegate {
+    var window: UIWindow?
+    let shakeDetector = ShakeDetector()
+
+    func scene(
+        _ scene: UIScene,
+        willConnectTo session: UISceneSession,
+        options connectionOptions: UIScene.ConnectionOptions
+    ) {
+        guard let windowScene = scene as? UIWindowScene else { return }
+        let window = ShakeDetectingWindow(windowScene: windowScene)
+        window.rootViewController = UINavigationController(rootViewController: YourRootVC())
+        self.window = window
+        window.makeKeyAndVisible()
+
+        shakeDetector.install(on: window)
+    }
+}
+```
+
+## API Client
+
+For advanced use cases, access the API client directly after initialization:
+
+```swift
+guard let api = Critic.shared.api else { return }
+
+// List bug reports
+let reports = try await api.listBugReports(appApiToken: "YOUR_APP_TOKEN")
+for report in reports.items {
+    print("\(report.id): \(report.description ?? "No description")")
+}
+
+// Get a single bug report
+let report = try await api.getBugReport(id: "report-uuid", appApiToken: "YOUR_APP_TOKEN")
+
+// List devices
+let devices = try await api.listDevices(appApiToken: "YOUR_APP_TOKEN")
+```
+
+## Error Handling
+
+All API methods throw `CriticError` on failure:
+
+```swift
+do {
+    let report = try await Critic.shared.submitReport(input)
+} catch CriticError.unauthorized {
+    print("Invalid API token")
+} catch CriticError.forbidden {
+    print("Access forbidden")
+} catch CriticError.notFound {
+    print("Resource not found")
+} catch CriticError.validationFailed(let message) {
+    print("Validation error: \(message)")
+} catch CriticError.badRequest(let message) {
+    print("Bad request: \(message)")
+} catch CriticError.notInitialized {
+    print("SDK not initialized — call Critic.shared.initialize() first")
+} catch CriticError.networkError(let message) {
+    print("Network error: \(message)")
+} catch {
+    print("Unexpected error: \(error)")
+}
+```
+
+## Custom Base URL
+
+Point the SDK to a self-hosted Critic instance:
+
+```swift
+try await Critic.shared.initialize(
+    apiToken: "YOUR_API_TOKEN",
+    baseURL: URL(string: "https://your-critic-instance.example.com")
+)
+```
+
+## Requirements
+
+- iOS 16.0+
+- Swift 6.0+
+- Xcode 16.0+
+
+## Contributing
 
 1. Clone this repository.
-2. Open the workspace in XCode.
-3. Update the `Example` project's `Podfile` to reference the local repository instead of a specific version of the Critic Cocoapod.
-4. Validate everything works in your simulator.
-
-### Releasing a New Cocoapod Version
-
-1. Update the version in `Critic.podspec`.
-2. Create a new tag for your changes, and push it up to GitHub.
-3. Run `bundle exec pod trunk push Critic.podspec`
-4. Wait several minutes for the updated version to become available.
-5. Update your `Podfile` to reference the new version.
-6. Run `bundle exec pod repo update && bundle exec pod install --repo-update` to update to the new version.
+2. Open `Package.swift` in Xcode.
+3. Run tests with `Cmd+U` or `swift test`.
 
 ## License
 
-This library is released under the MIT License.
+This library is released under the [MIT License](LICENSE).
