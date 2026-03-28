@@ -2,7 +2,7 @@
 import UIKit
 #endif
 import Foundation
-import Network
+import SystemConfiguration
 
 /// Collects device information using native iOS APIs.
 public struct DeviceInfo: Sendable {
@@ -132,28 +132,30 @@ public struct DeviceInfo: Sendable {
         return (nil, nil, nil, nil, total, nil)
     }
 
-    /// Returns network connectivity status using NWPathMonitor.
+    /// Returns network connectivity status using SCNetworkReachability (synchronous, non-blocking).
     private func networkStatus() -> (wifiConnected: Bool?, cellConnected: Bool?) {
-        let monitor = NWPathMonitor()
-        let semaphore = DispatchSemaphore(value: 0)
-        var capturedPath: NWPath?
+        var zeroAddress = sockaddr()
+        zeroAddress.sa_len = UInt8(MemoryLayout<sockaddr>.size)
+        zeroAddress.sa_family = sa_family_t(AF_INET)
 
-        monitor.pathUpdateHandler = { path in
-            capturedPath = path
-            semaphore.signal()
-        }
-
-        let queue = DispatchQueue(label: "io.inventiv.critic.network-status")
-        monitor.start(queue: queue)
-        _ = semaphore.wait(timeout: .now() + 1.0)
-        monitor.cancel()
-
-        guard let path = capturedPath else {
+        guard let reachability = SCNetworkReachabilityCreateWithAddress(nil, &zeroAddress) else {
             return (nil, nil)
         }
 
-        let wifiConnected = path.status == .satisfied && path.usesInterfaceType(.wifi)
-        let cellConnected = path.status == .satisfied && path.usesInterfaceType(.cellular)
+        var flags: SCNetworkReachabilityFlags = []
+        guard SCNetworkReachabilityGetFlags(reachability, &flags) else {
+            return (nil, nil)
+        }
+
+        let isReachable = flags.contains(.reachable)
+        #if os(iOS)
+        let isCellular = flags.contains(.isWWAN)
+        #else
+        let isCellular = false
+        #endif
+
+        let wifiConnected = isReachable && !isCellular
+        let cellConnected = isReachable && isCellular
         return (wifiConnected, cellConnected)
     }
 }
