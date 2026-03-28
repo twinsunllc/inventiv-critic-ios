@@ -67,6 +67,7 @@ public struct DeviceInfo: Sendable {
     #endif
 
     /// Returns the vendor identifier or a generated UUID.
+    @MainActor
     private func identifierForVendor() -> String {
         #if canImport(UIKit)
         return UIDevice.current.identifierForVendor?.uuidString ?? UUID().uuidString
