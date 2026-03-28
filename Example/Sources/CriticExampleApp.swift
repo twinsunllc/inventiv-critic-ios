@@ -4,11 +4,21 @@ import Critic
 
 @main
 struct CriticExampleApp: App {
+    /// Set this to your local Critic server URL for development, or nil for production.
+    /// Example: URL(string: "http://localhost:8000")
+    private static let customBaseURL: URL? = nil
+
+    /// Replace with your API token from https://critic.inventiv.io/products
+    /// or use a local development token.
+    private static let apiToken = "YOUR_API_TOKEN"
+
     init() {
         Task {
             do {
-                // Replace with your API token from https://critic.inventiv.io/products
-                try await Critic.shared.initialize(apiToken: "YOUR_API_TOKEN")
+                try await Critic.shared.initialize(
+                    apiToken: Self.apiToken,
+                    baseURL: Self.customBaseURL
+                )
                 print("Critic SDK initialized successfully")
             } catch {
                 print("Failed to initialize Critic: \(error)")
