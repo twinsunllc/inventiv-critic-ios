@@ -59,8 +59,8 @@ import OSLog
     // it gets included in the multipart body sent to the API.
     // Since we can't easily mock LogCapture.captureRecentLogs() (it's a static method),
     // we test the API layer directly: passing a console-logs.txt attachment should appear in the body.
-    MockHTTPClient.reset()
-    MockHTTPClient.requestHandler = { _ in
+    let mock = MockHTTPClient()
+    mock.requestHandler = { _ in
         let response = HTTPURLResponse(
             url: URL(string: "https://critic.test.io")!,
             statusCode: 200, httpVersion: nil, headerFields: nil
@@ -73,7 +73,7 @@ import OSLog
     let api = CriticAPI(
         baseURL: URL(string: "https://critic.test.io")!,
         apiToken: "test-token",
-        httpClient: MockHTTPClient()
+        httpClient: mock
     )
 
     let logData = Data("2026-03-28 10:00:00.000 INFO (com.test) [default] App launched\n".utf8)
@@ -88,7 +88,7 @@ import OSLog
     )
 
     let bodyString = String(
-        data: MockHTTPClient.capturedRequests.first?.httpBody ?? Data(),
+        data: mock.capturedRequests.first?.httpBody ?? Data(),
         encoding: .utf8
     ) ?? ""
 
@@ -100,8 +100,8 @@ import OSLog
 
 @Test func submitReportWithUserAttachmentsAndConsoleLogs() async throws {
     // Verify that both user attachments and console log attachment appear in the body.
-    MockHTTPClient.reset()
-    MockHTTPClient.requestHandler = { _ in
+    let mock = MockHTTPClient()
+    mock.requestHandler = { _ in
         let response = HTTPURLResponse(
             url: URL(string: "https://critic.test.io")!,
             statusCode: 200, httpVersion: nil, headerFields: nil
@@ -114,7 +114,7 @@ import OSLog
     let api = CriticAPI(
         baseURL: URL(string: "https://critic.test.io")!,
         apiToken: "test-token",
-        httpClient: MockHTTPClient()
+        httpClient: mock
     )
 
     let userFile = Data("screenshot content".utf8)
@@ -131,7 +131,7 @@ import OSLog
     )
 
     let bodyString = String(
-        data: MockHTTPClient.capturedRequests.first?.httpBody ?? Data(),
+        data: mock.capturedRequests.first?.httpBody ?? Data(),
         encoding: .utf8
     ) ?? ""
 
