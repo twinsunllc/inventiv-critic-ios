@@ -1,4 +1,4 @@
-name: CI
+name: Nightly Security
 
 on:
   push:
