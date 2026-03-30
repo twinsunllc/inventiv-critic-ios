@@ -8,7 +8,7 @@ import Foundation
     let json = """
     {"id": "abc-123", "name": "TestApp", "platform": "iOS"}
     """
-    let app = try JSONDecoder().decode(App.self, from: Data(json.utf8))
+    let app = try JSONDecoder().decode(CriticApp.self, from: Data(json.utf8))
     #expect(app.id == "abc-123")
     #expect(app.name == "TestApp")
     #expect(app.platform == "iOS")
@@ -18,7 +18,7 @@ import Foundation
     let json = """
     {"id": "abc-123"}
     """
-    let app = try JSONDecoder().decode(App.self, from: Data(json.utf8))
+    let app = try JSONDecoder().decode(CriticApp.self, from: Data(json.utf8))
     #expect(app.id == "abc-123")
     #expect(app.name == nil)
     #expect(app.platform == nil)
