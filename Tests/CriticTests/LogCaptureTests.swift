@@ -25,7 +25,7 @@ import OSLog
     // so captureRecentLogs() returns nil. This is expected behavior.
     // If it does return a result, verify the filename and mimeType.
     if let attachment = LogCapture.captureRecentLogs() {
-        #expect(attachment.filename == "console.log")
+        #expect(attachment.filename == "console-logs.txt")
         #expect(attachment.mimeType == "text/plain")
         #expect(!attachment.data.isEmpty)
     }
@@ -58,7 +58,7 @@ import OSLog
     // This test verifies that when LogCapture returns data,
     // it gets included in the multipart body sent to the API.
     // Since we can't easily mock LogCapture.captureRecentLogs() (it's a static method),
-    // we test the API layer directly: passing a console.log attachment should appear in the body.
+    // we test the API layer directly: passing a console-logs.txt attachment should appear in the body.
     MockURLProtocol.reset()
     MockURLProtocol.requestHandler = { _ in
         let response = HTTPURLResponse(
@@ -81,7 +81,7 @@ import OSLog
 
     let logData = Data("2026-03-28 10:00:00.000 INFO (com.test) [default] App launched\n".utf8)
     let attachments: [(filename: String, mimeType: String, data: Data)] = [
-        (filename: "console.log", mimeType: "text/plain", data: logData)
+        (filename: "console-logs.txt", mimeType: "text/plain", data: logData)
     ]
 
     _ = try await api.createBugReport(
@@ -96,7 +96,7 @@ import OSLog
     ) ?? ""
 
     #expect(bodyString.contains("name=\"bug_report[attachments][]\""))
-    #expect(bodyString.contains("filename=\"console.log\""))
+    #expect(bodyString.contains("filename=\"console-logs.txt\""))
     #expect(bodyString.contains("Content-Type: text/plain"))
     #expect(bodyString.contains("App launched"))
 }
@@ -127,7 +127,7 @@ import OSLog
     let logData = Data("2026-03-28 10:00:00.000 ERROR [network] Request failed\n".utf8)
     let attachments: [(filename: String, mimeType: String, data: Data)] = [
         (filename: "screenshot.png", mimeType: "image/png", data: userFile),
-        (filename: "console.log", mimeType: "text/plain", data: logData),
+        (filename: "console-logs.txt", mimeType: "text/plain", data: logData),
     ]
 
     _ = try await api.createBugReport(
@@ -143,7 +143,7 @@ import OSLog
 
     // Both attachments present
     #expect(bodyString.contains("filename=\"screenshot.png\""))
-    #expect(bodyString.contains("filename=\"console.log\""))
+    #expect(bodyString.contains("filename=\"console-logs.txt\""))
     #expect(bodyString.contains("screenshot content"))
     #expect(bodyString.contains("Request failed"))
 }
