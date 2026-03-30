@@ -58,7 +58,7 @@ enum LogCapture {
             let text = formatted.joined(separator: "\n")
             guard let data = text.data(using: .utf8) else { return nil }
 
-            return (filename: "console.log", mimeType: "text/plain", data: data)
+            return (filename: "console-logs.txt", mimeType: "text/plain", data: data)
         } catch {
             return nil
         }
