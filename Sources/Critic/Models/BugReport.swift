@@ -34,7 +34,7 @@ public struct BugReport: Codable, Sendable, Equatable {
     public let appVersion: AppVersion?
 
     /// The app associated with the report.
-    public let app: App?
+    public let app: CriticApp?
 
     /// File attachments on the report.
     public let attachments: [Attachment]?
@@ -65,7 +65,7 @@ public struct BugReport: Codable, Sendable, Equatable {
         device: Device? = nil,
         deviceStatus: DeviceStatus? = nil,
         appVersion: AppVersion? = nil,
-        app: App? = nil,
+        app: CriticApp? = nil,
         attachments: [Attachment]? = nil
     ) {
         self.id = id

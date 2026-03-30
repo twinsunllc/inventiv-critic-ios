@@ -371,7 +371,7 @@ private func mockAPI(baseURL: String = "https://critic.test.io", apiToken: Strin
     let json = """
     {"id": "simple-string-id", "name": "Test"}
     """
-    let app = try JSONDecoder().decode(App.self, from: Data(json.utf8))
+    let app = try JSONDecoder().decode(CriticApp.self, from: Data(json.utf8))
     #expect(app.id == "simple-string-id")
 }
 

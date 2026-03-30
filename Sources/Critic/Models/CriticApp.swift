@@ -1,7 +1,7 @@
 import Foundation
 
 /// Represents an application registered with Critic.
-public struct App: Codable, Sendable, Equatable {
+public struct CriticApp: Codable, Sendable, Equatable {
 
     /// The unique identifier (UUID) for this app.
     public let id: String
