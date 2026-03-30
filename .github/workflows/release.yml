@@ -28,7 +28,7 @@ jobs:
           set -o pipefail
           xcodebuild build \
             -scheme Critic \
-            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+            -destination 'platform=macOS' \
             -skipPackagePluginValidation \
             | tail -20
 
@@ -37,7 +37,7 @@ jobs:
           set -o pipefail
           xcodebuild test \
             -scheme Critic \
-            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+            -destination 'platform=macOS' \
             -skipPackagePluginValidation \
             | tail -40
 
