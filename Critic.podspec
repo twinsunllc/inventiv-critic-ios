@@ -11,7 +11,7 @@ Uses native URLSession and device APIs with no external dependencies.
   s.homepage         = 'https://github.com/twinsunllc/inventiv-critic-ios'
   s.license          = { :type => 'MIT', :file => 'LICENSE' }
   s.author           = { 'Twin Sun' => 'dev@twinsun.com' }
-  s.source           = { :git => 'https://github.com/twinsunllc/inventiv-critic-ios.git', :tag => s.version.to_s }
+  s.source           = { :git => 'https://github.com/twinsunllc/inventiv-critic-ios.git', :tag => "v#{s.version}" }
 
   s.ios.deployment_target = '16.0'
   s.swift_version = '6.0'
