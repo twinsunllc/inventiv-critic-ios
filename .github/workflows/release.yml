@@ -25,6 +25,7 @@ jobs:
 
       - name: Build
         run: |
+          set -o pipefail
           xcodebuild build \
             -scheme Critic \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
@@ -33,6 +34,7 @@ jobs:
 
       - name: Test
         run: |
+          set -o pipefail
           xcodebuild test \
             -scheme Critic \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
@@ -43,9 +45,9 @@ jobs:
     name: Create GitHub Release
     needs: test
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.name }}
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
-
       - name: Resolve tag name
         id: tag
         run: |
@@ -53,6 +55,27 @@ jobs:
             echo "name=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
           else
             echo "name=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate tag format
+        run: |
+          TAG="${{ steps.tag.outputs.name }}"
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Error: tag input must match v[0-9]*.[0-9]*.[0-9]* (e.g. v1.0.0). Got: $TAG"
+            exit 1
+          fi
+
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+        with:
+          ref: ${{ steps.tag.outputs.name }}
+
+      - name: Verify tag exists on remote
+        run: |
+          TAG="${{ steps.tag.outputs.name }}"
+          git fetch --tags
+          if ! git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Error: tag $TAG does not exist on the remote. Push the tag before triggering dispatch."
+            exit 1
           fi
 
       - name: Extract changelog for this version
@@ -91,6 +114,8 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+        with:
+          ref: ${{ needs.github-release.outputs.tag }}
 
       - name: Install CocoaPods
         run: gem install cocoapods --no-document
