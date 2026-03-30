@@ -2,39 +2,31 @@ import Testing
 import Foundation
 @testable import Critic
 
-// MARK: - Mock URLProtocol
+// MARK: - Mock HTTP Client
 
-/// A URLProtocol subclass that intercepts network requests for testing.
-final class MockURLProtocol: URLProtocol, @unchecked Sendable {
+/// A simple mock that replaces URLProtocol-based interception.
+/// Works identically on iOS Simulator and macOS destinations.
+final class MockHTTPClient: HTTPClient, @unchecked Sendable {
 
-    /// Handler that provides (response, data, error) for each request.
+    /// Handler that provides (data, response) for each request.
     nonisolated(unsafe) static var requestHandler: ((URLRequest) throws -> (HTTPURLResponse, Data))?
 
     /// Captured requests for assertion.
     nonisolated(unsafe) static var capturedRequests: [URLRequest] = []
 
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-
-    override func startLoading() {
+    func data(for request: URLRequest) async throws -> (Data, URLResponse) {
         Self.capturedRequests.append(request)
 
         guard let handler = Self.requestHandler else {
-            client?.urlProtocolDidFinishLoading(self)
-            return
+            let empty = HTTPURLResponse(
+                url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil
+            )!
+            return (Data(), empty)
         }
 
-        do {
-            let (response, data) = try handler(request)
-            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-            client?.urlProtocol(self, didLoad: data)
-            client?.urlProtocolDidFinishLoading(self)
-        } catch {
-            client?.urlProtocol(self, didFailWithError: error)
-        }
+        let (response, data) = try handler(request)
+        return (data, response)
     }
-
-    override func stopLoading() {}
 
     static func reset() {
         requestHandler = nil
@@ -42,23 +34,16 @@ final class MockURLProtocol: URLProtocol, @unchecked Sendable {
     }
 }
 
-/// Creates a URLSession configured with MockURLProtocol.
-private func mockSession() -> URLSession {
-    let config = URLSessionConfiguration.ephemeral
-    config.protocolClasses = [MockURLProtocol.self]
-    return URLSession(configuration: config)
-}
-
-/// Creates a CriticAPI instance using the mock session.
+/// Creates a CriticAPI instance using the mock HTTP client.
 private func mockAPI(baseURL: String = "https://critic.test.io", apiToken: String = "test-token") -> CriticAPI {
-    CriticAPI(baseURL: URL(string: baseURL)!, apiToken: apiToken, session: mockSession())
+    CriticAPI(baseURL: URL(string: baseURL)!, apiToken: apiToken, httpClient: MockHTTPClient())
 }
 
 // MARK: - Ping Request Construction Tests
 
 @Test func pingRequestSendsCorrectHTTPMethod() async throws {
-    MockURLProtocol.reset()
-    MockURLProtocol.requestHandler = { request in
+    MockHTTPClient.reset()
+    MockHTTPClient.requestHandler = { request in
         let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
         let body = Data("""
         {"app_install": {"id": "install-123"}}
@@ -75,15 +60,15 @@ private func mockAPI(baseURL: String = "https://critic.test.io", apiToken: Strin
 
     _ = try await api.ping(pingRequest)
 
-    let captured = MockURLProtocol.capturedRequests.first
+    let captured = MockHTTPClient.capturedRequests.first
     #expect(captured?.httpMethod == "POST")
     #expect(captured?.url?.absoluteString == "https://critic.test.io/api/v3/ping")
     #expect(captured?.value(forHTTPHeaderField: "Content-Type") == "application/json")
 }
 
 @Test func pingRequestBodyContainsCorrectFields() async throws {
-    MockURLProtocol.reset()
-    MockURLProtocol.requestHandler = { request in
+    MockHTTPClient.reset()
+    MockHTTPClient.requestHandler = { request in
         let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
         return (response, Data("""
         {"app_install": {"id": "install-456"}}
@@ -99,7 +84,7 @@ private func mockAPI(baseURL: String = "https://critic.test.io", apiToken: Strin
 
     _ = try await api.ping(pingRequest)
 
-    let captured = MockURLProtocol.capturedRequests.first
+    let captured = MockHTTPClient.capturedRequests.first
     let bodyData = captured?.httpBody ?? Data()
     let body = try JSONSerialization.jsonObject(with: bodyData) as! [String: Any]
 
@@ -112,8 +97,8 @@ private func mockAPI(baseURL: String = "https://critic.test.io", apiToken: Strin
 }
 
 @Test func pingResponseParsesAppInstallId() async throws {
-    MockURLProtocol.reset()
-    MockURLProtocol.requestHandler = { _ in
+    MockHTTPClient.reset()
+    MockHTTPClient.requestHandler = { _ in
         let response = HTTPURLResponse(url: URL(string: "https://critic.test.io")!, statusCode: 200, httpVersion: nil, headerFields: nil)!
         return (response, Data("""
         {"app_install": {"id": "uuid-parsed-correctly"}}
@@ -133,8 +118,8 @@ private func mockAPI(baseURL: String = "https://critic.test.io", apiToken: Strin
 // MARK: - Bug Report Request Construction Tests
 
 @Test func createBugReportSendsMultipartPOST() async throws {
-    MockURLProtocol.reset()
-    MockURLProtocol.requestHandler = { request in
+    MockHTTPClient.reset()
+    MockHTTPClient.requestHandler = { request in
         let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
         return (response, Data("""
         {"id": "br-new", "description": "Test bug"}
@@ -146,7 +131,7 @@ private func mockAPI(baseURL: String = "https://critic.test.io", apiToken: Strin
 
     _ = try await api.createBugReport(report: input, appInstallId: "install-id")
 
-    let captured = MockURLProtocol.capturedRequests.first
+    let captured = MockHTTPClient.capturedRequests.first
     #expect(captured?.httpMethod == "POST")
     #expect(captured?.url?.absoluteString == "https://critic.test.io/api/v3/bug_reports")
     let contentType = captured?.value(forHTTPHeaderField: "Content-Type") ?? ""
@@ -167,8 +152,8 @@ private func mockAPI(baseURL: String = "https://critic.test.io", apiToken: Strin
 }
 
 @Test func createBugReportWithAttachments() async throws {
-    MockURLProtocol.reset()
-    MockURLProtocol.requestHandler = { _ in
+    MockHTTPClient.reset()
+    MockHTTPClient.requestHandler = { _ in
         let response = HTTPURLResponse(url: URL(string: "https://critic.test.io")!, statusCode: 200, httpVersion: nil, headerFields: nil)!
         return (response, Data("""
         {"id": "br-attach"}
@@ -185,7 +170,7 @@ private func mockAPI(baseURL: String = "https://critic.test.io", apiToken: Strin
         attachments: [(filename: "screenshot.png", mimeType: "image/png", data: fileData)]
     )
 
-    let bodyString = String(data: MockURLProtocol.capturedRequests.first?.httpBody ?? Data(), encoding: .utf8) ?? ""
+    let bodyString = String(data: MockHTTPClient.capturedRequests.first?.httpBody ?? Data(), encoding: .utf8) ?? ""
     #expect(bodyString.contains("name=\"bug_report[attachments][]\""))
     #expect(bodyString.contains("filename=\"screenshot.png\""))
     #expect(bodyString.contains("Content-Type: image/png"))
@@ -193,8 +178,8 @@ private func mockAPI(baseURL: String = "https://critic.test.io", apiToken: Strin
 }
 
 @Test func createBugReportParsesResponse() async throws {
-    MockURLProtocol.reset()
-    MockURLProtocol.requestHandler = { _ in
+    MockHTTPClient.reset()
+    MockHTTPClient.requestHandler = { _ in
         let response = HTTPURLResponse(url: URL(string: "https://critic.test.io")!, statusCode: 200, httpVersion: nil, headerFields: nil)!
         return (response, Data("""
         {
@@ -223,8 +208,8 @@ private func mockAPI(baseURL: String = "https://critic.test.io", apiToken: Strin
 // MARK: - Error Handling Tests (HTTP Status Codes)
 
 @Test func apiReturns401Unauthorized() async throws {
-    MockURLProtocol.reset()
-    MockURLProtocol.requestHandler = { _ in
+    MockHTTPClient.reset()
+    MockHTTPClient.requestHandler = { _ in
         let response = HTTPURLResponse(url: URL(string: "https://critic.test.io")!, statusCode: 401, httpVersion: nil, headerFields: nil)!
         return (response, Data("Unauthorized".utf8))
     }
@@ -239,8 +224,8 @@ private func mockAPI(baseURL: String = "https://critic.test.io", apiToken: Strin
 }
 
 @Test func apiReturns403Forbidden() async throws {
-    MockURLProtocol.reset()
-    MockURLProtocol.requestHandler = { _ in
+    MockHTTPClient.reset()
+    MockHTTPClient.requestHandler = { _ in
         let response = HTTPURLResponse(url: URL(string: "https://critic.test.io")!, statusCode: 403, httpVersion: nil, headerFields: nil)!
         return (response, Data("Forbidden".utf8))
     }
@@ -255,8 +240,8 @@ private func mockAPI(baseURL: String = "https://critic.test.io", apiToken: Strin
 }
 
 @Test func apiReturns404NotFound() async throws {
-    MockURLProtocol.reset()
-    MockURLProtocol.requestHandler = { _ in
+    MockHTTPClient.reset()
+    MockHTTPClient.requestHandler = { _ in
         let response = HTTPURLResponse(url: URL(string: "https://critic.test.io")!, statusCode: 404, httpVersion: nil, headerFields: nil)!
         return (response, Data("Not Found".utf8))
     }
@@ -271,8 +256,8 @@ private func mockAPI(baseURL: String = "https://critic.test.io", apiToken: Strin
 }
 
 @Test func apiReturns422ValidationFailed() async throws {
-    MockURLProtocol.reset()
-    MockURLProtocol.requestHandler = { _ in
+    MockHTTPClient.reset()
+    MockHTTPClient.requestHandler = { _ in
         let response = HTTPURLResponse(url: URL(string: "https://critic.test.io")!, statusCode: 422, httpVersion: nil, headerFields: nil)!
         return (response, Data("""
         {"error": "Description is required"}
@@ -289,8 +274,8 @@ private func mockAPI(baseURL: String = "https://critic.test.io", apiToken: Strin
 }
 
 @Test func apiReturns400BadRequest() async throws {
-    MockURLProtocol.reset()
-    MockURLProtocol.requestHandler = { _ in
+    MockHTTPClient.reset()
+    MockHTTPClient.requestHandler = { _ in
         let response = HTTPURLResponse(url: URL(string: "https://critic.test.io")!, statusCode: 400, httpVersion: nil, headerFields: nil)!
         return (response, Data("""
         ["Invalid api_token parameter"]
@@ -307,8 +292,8 @@ private func mockAPI(baseURL: String = "https://critic.test.io", apiToken: Strin
 }
 
 @Test func apiReturns500UnexpectedStatusCode() async throws {
-    MockURLProtocol.reset()
-    MockURLProtocol.requestHandler = { _ in
+    MockHTTPClient.reset()
+    MockHTTPClient.requestHandler = { _ in
         let response = HTTPURLResponse(url: URL(string: "https://critic.test.io")!, statusCode: 500, httpVersion: nil, headerFields: nil)!
         return (response, Data("Internal Server Error".utf8))
     }
@@ -323,8 +308,8 @@ private func mockAPI(baseURL: String = "https://critic.test.io", apiToken: Strin
 }
 
 @Test func apiReturnsInvalidJSONThrowsDecodingFailed() async throws {
-    MockURLProtocol.reset()
-    MockURLProtocol.requestHandler = { _ in
+    MockHTTPClient.reset()
+    MockHTTPClient.requestHandler = { _ in
         let response = HTTPURLResponse(url: URL(string: "https://critic.test.io")!, statusCode: 200, httpVersion: nil, headerFields: nil)!
         return (response, Data("not valid json {{{".utf8))
     }
@@ -378,8 +363,8 @@ private func mockAPI(baseURL: String = "https://critic.test.io", apiToken: Strin
 // MARK: - Device Status Fields in Bug Report Request
 
 @Test func createBugReportIncludesDeviceStatus() async throws {
-    MockURLProtocol.reset()
-    MockURLProtocol.requestHandler = { _ in
+    MockHTTPClient.reset()
+    MockHTTPClient.requestHandler = { _ in
         let response = HTTPURLResponse(url: URL(string: "https://critic.test.io")!, statusCode: 200, httpVersion: nil, headerFields: nil)!
         return (response, Data("""
         {"id": "br-ds"}
@@ -395,7 +380,7 @@ private func mockAPI(baseURL: String = "https://critic.test.io", apiToken: Strin
         deviceStatus: status
     )
 
-    let bodyString = String(data: MockURLProtocol.capturedRequests.first?.httpBody ?? Data(), encoding: .utf8) ?? ""
+    let bodyString = String(data: MockHTTPClient.capturedRequests.first?.httpBody ?? Data(), encoding: .utf8) ?? ""
     #expect(bodyString.contains("device_status[battery_charging]"))
     #expect(bodyString.contains("true"))
     #expect(bodyString.contains("device_status[battery_level]"))
@@ -407,8 +392,8 @@ private func mockAPI(baseURL: String = "https://critic.test.io", apiToken: Strin
 // MARK: - Error Message Extraction Tests
 
 @Test func errorMessageFromJsonDict() async throws {
-    MockURLProtocol.reset()
-    MockURLProtocol.requestHandler = { _ in
+    MockHTTPClient.reset()
+    MockHTTPClient.requestHandler = { _ in
         let response = HTTPURLResponse(url: URL(string: "https://critic.test.io")!, statusCode: 422, httpVersion: nil, headerFields: nil)!
         return (response, Data("""
         {"error": "Validation failed: description can't be blank"}
@@ -425,8 +410,8 @@ private func mockAPI(baseURL: String = "https://critic.test.io", apiToken: Strin
 }
 
 @Test func errorMessageFromJsonArray() async throws {
-    MockURLProtocol.reset()
-    MockURLProtocol.requestHandler = { _ in
+    MockHTTPClient.reset()
+    MockHTTPClient.requestHandler = { _ in
         let response = HTTPURLResponse(url: URL(string: "https://critic.test.io")!, statusCode: 400, httpVersion: nil, headerFields: nil)!
         return (response, Data("""
         ["First error message", "Second error"]
@@ -443,8 +428,8 @@ private func mockAPI(baseURL: String = "https://critic.test.io", apiToken: Strin
 }
 
 @Test func errorMessageFromPlainText() async throws {
-    MockURLProtocol.reset()
-    MockURLProtocol.requestHandler = { _ in
+    MockHTTPClient.reset()
+    MockHTTPClient.requestHandler = { _ in
         let response = HTTPURLResponse(url: URL(string: "https://critic.test.io")!, statusCode: 400, httpVersion: nil, headerFields: nil)!
         return (response, Data("Plain text error".utf8))
     }

@@ -1,5 +1,14 @@
 import Foundation
 
+/// Abstracts `URLSession.data(for:)` so tests can supply a mock without
+/// relying on `URLProtocol`, which does not intercept requests reliably
+/// on all platforms (notably macOS).
+protocol HTTPClient: Sendable {
+    func data(for request: URLRequest) async throws -> (Data, URLResponse)
+}
+
+extension URLSession: HTTPClient {}
+
 /// Handles communication with the Critic v3 REST API.
 ///
 /// `CriticAPI` is an actor that provides type-safe access to all Critic API endpoints.
@@ -21,7 +30,7 @@ public actor CriticAPI {
     /// The organization API token used for authenticated POST endpoints.
     public let apiToken: String
 
-    private let session: URLSession
+    private let httpClient: any HTTPClient
     private let decoder: JSONDecoder
 
     /// Creates a new API client.
@@ -33,7 +42,15 @@ public actor CriticAPI {
     public init(baseURL: URL, apiToken: String, session: URLSession = .shared) {
         self.baseURL = baseURL
         self.apiToken = apiToken
-        self.session = session
+        self.httpClient = session
+        self.decoder = JSONDecoder()
+    }
+
+    /// Internal initializer accepting any ``HTTPClient`` for testing.
+    init(baseURL: URL, apiToken: String, httpClient: any HTTPClient) {
+        self.baseURL = baseURL
+        self.apiToken = apiToken
+        self.httpClient = httpClient
         self.decoder = JSONDecoder()
     }
 
@@ -129,7 +146,7 @@ public actor CriticAPI {
         let data: Data
         let response: URLResponse
         do {
-            (data, response) = try await session.data(for: request)
+            (data, response) = try await httpClient.data(for: request)
         } catch {
             throw CriticError.networkError(error.localizedDescription)
         }
