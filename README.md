@@ -36,20 +36,6 @@ Or in Xcode: **File > Add Package Dependencies...** and enter:
 https://github.com/twinsunllc/inventiv-critic-ios
 ```
 
-### CocoaPods
-
-Add `Critic` to your `Podfile`:
-
-```ruby
-pod 'Critic', '~> 1.0'
-```
-
-Then run:
-
-```bash
-bundle exec pod install
-```
-
 ## Quick Start
 
 ### 1. Initialize the SDK
