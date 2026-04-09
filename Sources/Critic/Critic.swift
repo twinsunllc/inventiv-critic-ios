@@ -33,6 +33,7 @@ import Foundation
 /// - ``appInstallId``
 /// - ``apiToken``
 /// - ``baseURL``
+/// - ``captureLogsWhenDebugging``
 public final class Critic: @unchecked Sendable {
 
     /// The shared singleton instance of the Critic SDK.
@@ -50,6 +51,15 @@ public final class Critic: @unchecked Sendable {
     /// The base URL for the Critic API. Defaults to `https://critic.inventiv.io`.
     public private(set) var baseURL: URL
 
+    /// Whether logs should be captured even when a debugger is attached.
+    ///
+    /// When `true`, ``submitReport(_:attachments:)`` passes the opt-in flag to the log
+    /// capture layer so that console logs are included in bug reports filed from Xcode.
+    /// Defaults to `false` to keep production builds unaffected.
+    ///
+    /// Set this to `true` only in development or testing builds.
+    public private(set) var captureLogsWhenDebugging: Bool = false
+
     private let lock = NSLock()
 
     private init() {
@@ -57,8 +67,8 @@ public final class Critic: @unchecked Sendable {
     }
 
     /// Thread-safe read of mutable properties used by public methods.
-    private func lockedState() -> (api: CriticAPI?, appInstallId: String?) {
-        lock.withLock { (self.api, self.appInstallId) }
+    private func lockedState() -> (api: CriticAPI?, appInstallId: String?, captureLogsWhenDebugging: Bool) {
+        lock.withLock { (self.api, self.appInstallId, self.captureLogsWhenDebugging) }
     }
 
     /// Initialize the SDK with an organization API token.
@@ -69,18 +79,24 @@ public final class Critic: @unchecked Sendable {
     /// - Parameters:
     ///   - apiToken: Your organization's API token from the Critic web portal.
     ///   - baseURL: Optional custom base URL for self-hosted instances. Defaults to `https://critic.inventiv.io`.
+    ///   - captureLogsWhenDebugging: When `true`, console logs are captured and attached to bug
+    ///     reports even when a debugger is attached (e.g. during an Xcode session). Defaults to
+    ///     `false` so production builds are unaffected. Set to `true` only in development or
+    ///     testing builds.
     /// - Throws: ``CriticError`` if the ping request fails.
     #if canImport(UIKit)
     @MainActor
     public func initialize(
         apiToken: String,
-        baseURL: URL? = nil
+        baseURL: URL? = nil,
+        captureLogsWhenDebugging: Bool = false
     ) async throws {
         let resolvedBaseURL = baseURL ?? self.baseURL
 
         lock.withLock {
             self.apiToken = apiToken
             self.baseURL = resolvedBaseURL
+            self.captureLogsWhenDebugging = captureLogsWhenDebugging
             self.api = CriticAPI(baseURL: resolvedBaseURL, apiToken: apiToken)
         }
 
@@ -134,10 +150,10 @@ public final class Critic: @unchecked Sendable {
         _ report: BugReportInput,
         attachments: [(filename: String, mimeType: String, data: Data)]? = nil
     ) async throws -> BugReport {
-        let (api, appInstallId) = lockedState()
+        let (api, appInstallId, captureWhenDebugging) = lockedState()
 
-        guard let api else { throw CriticError.notInitialized }
-        guard let appInstallId else { throw CriticError.notInitialized }
+        guard let api = api else { throw CriticError.notInitialized }
+        guard let appInstallId = appInstallId else { throw CriticError.notInitialized }
 
         #if canImport(UIKit)
         let deviceInfo = DeviceInfo()
@@ -148,7 +164,7 @@ public final class Critic: @unchecked Sendable {
 
         var allAttachments = attachments ?? []
 
-        if let logAttachment = LogCapture.captureRecentLogs() {
+        if let logAttachment = LogCapture.captureRecentLogs(captureWhenDebugging: captureWhenDebugging) {
             allAttachments.append(logAttachment)
         }
 

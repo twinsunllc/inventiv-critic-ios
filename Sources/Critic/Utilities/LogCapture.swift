@@ -19,11 +19,15 @@ enum LogCapture {
     /// attachments array.
     ///
     /// Returns `nil` if:
-    /// - A debugger is attached (avoids flooding Xcode console output)
+    /// - A debugger is attached and `captureWhenDebugging` is `false` (avoids flooding Xcode console output)
     /// - The log store cannot be opened
     /// - No entries are found
-    static func captureRecentLogs() -> (filename: String, mimeType: String, data: Data)? {
-        guard !isDebuggerAttached() else { return nil }
+    ///
+    /// - Parameter captureWhenDebugging: When `true`, bypasses the debugger-attached guard so logs
+    ///   are captured even during Xcode debug sessions. Useful for development and testing. Defaults
+    ///   to `false` so that production builds are unaffected.
+    static func captureRecentLogs(captureWhenDebugging: Bool = false) -> (filename: String, mimeType: String, data: Data)? {
+        guard !isDebuggerAttached() || captureWhenDebugging else { return nil }
 
         do {
             let store = try OSLogStore(scope: .currentProcessIdentifier)
