@@ -5,6 +5,16 @@ All notable changes to the Critic iOS SDK are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-04-09
+
+### Changed
+
+- Updated documentation URLs from `inventiv.io/critic` to `critictracking.com` in the README.
+
+### Removed
+
+- Removed CocoaPods support. The SDK is now distributed exclusively via Swift Package Manager. The CocoaPods podspec, `Gemfile`, `Gemfile.lock`, Pod Lint CI job, and CocoaPods installation instructions in the README have all been removed. CocoaPods trunk is read-only and the podspec was never actively published.
+
 ## [1.0.0] - 2026-03-30
 
 First stable release. The SDK has been completely rewritten with Swift 6 strict concurrency, async/await, the v3 API, and SwiftUI support.
