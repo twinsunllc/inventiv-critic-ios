@@ -5,6 +5,12 @@ All notable changes to the Critic iOS SDK are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2026-04-09
+
+### Added
+
+- `captureLogsWhenDebugging` configuration flag on `Critic.initialize(...)`. When `true`, the SDK captures `OSLogStore` entries and attaches them to bug reports even when a debugger is attached. Defaults to `false` to preserve existing behavior (log capture is suppressed under Xcode to avoid flooding the console). Useful for integrators verifying the log attachment from Xcode during development.
+
 ## [1.0.1] - 2026-04-09
 
 ### Changed
