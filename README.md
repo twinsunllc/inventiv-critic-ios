@@ -5,7 +5,7 @@
 [![Platforms](https://img.shields.io/badge/Platforms-iOS%2016+-blue.svg)](https://developer.apple.com/ios/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-A Swift SDK for collecting actionable customer feedback via [Inventiv Critic](https://inventiv.io/critic/). Built with modern Swift concurrency (async/await), strict Sendable conformance, and zero external dependencies.
+A Swift SDK for collecting actionable customer feedback via [Inventiv Critic](https://critictracking.com). Built with modern Swift concurrency (async/await), strict Sendable conformance, and zero external dependencies.
 
 ## Installation
 
