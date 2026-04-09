@@ -8,7 +8,14 @@ struct CriticExampleApp: App {
         Task {
             do {
                 // Replace with your API token from https://critic.inventiv.io/products
-                try await Critic.shared.initialize(apiToken: "YOUR_API_TOKEN")
+                //
+                // Set captureLogsWhenDebugging: true during development to capture console
+                // logs even when a debugger is attached (e.g. running from Xcode).
+                // Remove or set to false for production builds.
+                try await Critic.shared.initialize(
+                    apiToken: "YOUR_API_TOKEN",
+                    captureLogsWhenDebugging: true
+                )
                 print("Critic SDK initialized successfully")
             } catch {
                 print("Failed to initialize Critic: \(error)")

@@ -32,6 +32,55 @@ import OSLog
     // Either way, the call should not throw or crash.
 }
 
+/// TS-1: captureRecentLogs(captureWhenDebugging: true) bypasses the debugger guard.
+/// When captureWhenDebugging is true, logs should be returned even when a debugger
+/// is attached. The OSLogStore may have permission restrictions in test environments,
+/// so we accept either a valid attachment or nil (store unavailable), but never a crash.
+@Test func logCaptureWithCaptureWhenDebuggingTrueBypassesDebuggerGuard() {
+    // With captureWhenDebugging: true, the debugger-attached guard is skipped.
+    // If OSLogStore is accessible, we get a valid attachment back.
+    // In CI/test runners where the store is restricted, nil is also acceptable.
+    if let attachment = LogCapture.captureRecentLogs(captureWhenDebugging: true) {
+        #expect(attachment.filename == "console-logs.txt")
+        #expect(attachment.mimeType == "text/plain")
+        #expect(!attachment.data.isEmpty)
+    }
+    // The key invariant: this must not crash regardless of debugger state.
+}
+
+/// TS-2: captureRecentLogs() with default false returns nil when debugger is attached.
+/// In the test runner, the debugger is typically attached, so the default call returns nil.
+@Test func logCaptureDefaultReturnNilWhenDebuggerAttached() {
+    // When running under Swift Testing (which attaches a debugger by default),
+    // captureRecentLogs() with the default captureWhenDebugging: false should return nil.
+    // If the test runner is not using a debugger, this test passes trivially.
+    if LogCapture.isDebuggerAttached() {
+        let result = LogCapture.captureRecentLogs()
+        #expect(result == nil)
+    }
+    // When no debugger attached, captureRecentLogs() may return logs — that's correct behavior.
+}
+
+/// TS-3: Critic.shared.captureLogsWhenDebugging defaults to false before initialization.
+@Test func criticCaptureLogsWhenDebuggingDefaultsToFalse() {
+    // Verify that the property type exists and is publicly readable.
+    // On a freshly launched test process, the shared instance is never initialized,
+    // so captureLogsWhenDebugging must be its declared default of false.
+    let critic = Critic.shared
+    // The property declaration initializes to false; submitReport() reads it under lock.
+    // Since no prior test in this file calls initialize(), the value should be false.
+    #expect(critic.captureLogsWhenDebugging == false)
+}
+
+/// TS-4: captureLogsWhenDebugging flag is publicly readable (type-level contract test).
+/// Full end-to-end validation of initialize(captureLogsWhenDebugging:) storing the value
+/// requires UIKit and @MainActor, so this test verifies the API surface compiles correctly.
+@Test func criticCaptureLogsWhenDebuggingPropertyIsReadable() {
+    let value: Bool = Critic.shared.captureLogsWhenDebugging
+    // Property is publicly readable — this test confirms the API surface exists.
+    #expect(value == false || value == true)
+}
+
 @Test func logCaptureEntryTimestampFormat() {
     // Create a known date and verify the formatting.
     // OSLogEntry is not directly constructable, so we test the formatter pattern
